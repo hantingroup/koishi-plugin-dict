@@ -50,8 +50,10 @@ export function apply(ctx: Context, config: Config) {
     })
   }
 
-  config.echo && ctx.middleware((session, next) => next(() => {
-    if (session.content)
-      return h.parse(resolve(session.content))
-  }), true)
+  config.echo && ctx.middleware((session, next) => {
+    if (!session.content)
+      return next()
+    const content = resolve(session.content)
+    return next(() => h.parse(content))
+  }, true)
 }
