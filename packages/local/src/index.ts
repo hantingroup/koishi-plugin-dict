@@ -74,7 +74,7 @@ class LocalDictSource extends DictSource<LocalDictSource.Config> {
 }
 
 namespace LocalDictSource {
-  export interface Config {
+  export interface Config extends DictSource.Config {
     encoding: 'ascii' | 'utf8' | 'utf16le'
   }
 
