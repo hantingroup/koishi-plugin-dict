@@ -5,10 +5,10 @@ export interface Found {
   weak: boolean
 }
 
-export abstract class DictSource<Config extends DictSource.Config = DictSource.Config> {
+export abstract class DictSource {
   static inject = ['dict']
 
-  constructor(public ctx: Context, public config: Config) {
+  constructor(public ctx: Context) {
     this.ctx.dict.register(this)
   }
 
@@ -30,8 +30,4 @@ export abstract class DictSource<Config extends DictSource.Config = DictSource.C
       }
     }
   }
-}
-
-export namespace DictSource {
-  export interface Config {}
 }

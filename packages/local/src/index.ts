@@ -7,9 +7,9 @@ import { DictSource } from 'koishi-plugin-dict'
 
 const logger = new Logger('dict-local')
 
-class LocalDictSource extends DictSource<LocalDictSource.Config> {
-  constructor(ctx: Context, config: LocalDictSource.Config) {
-    super(ctx, config)
+class LocalDictSource extends DictSource {
+  constructor(ctx: Context, public config: LocalDictSource.Config) {
+    super(ctx)
     opendir(resolve(ctx.baseDir, 'data', 'dicts'))
       .then(async (entries) => {
         for await (const entry of entries) {
@@ -74,7 +74,7 @@ class LocalDictSource extends DictSource<LocalDictSource.Config> {
 }
 
 namespace LocalDictSource {
-  export interface Config extends DictSource.Config {
+  export interface Config {
     encoding: 'ascii' | 'utf8' | 'utf16le'
   }
 
