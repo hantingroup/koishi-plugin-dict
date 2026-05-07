@@ -19,17 +19,15 @@ export function apply(ctx: Context, config: Config) {
           .map(name => options?.long ? name : name.split('/').pop())
           .join(delimiter)
       }
-      return (await Promise.all(keys.map(key => ctx.dict.lookup(key))))
-        .map((result) => {
-          if (result.extra)
-            session?.send(markdown(result.extra))
-          return result?.join(delimiter)
-        })
-        .map((joined, index) => joined
-          ? options?.long ? `${keys[index]}: ${joined}` : joined
-          : keys[index],
-        )
-        .join('\n')
+      return (await Promise.all(keys.map(async (key, index) => {
+        const result = await ctx.dict.lookup(key)
+        if (!result.length)
+          return keys[index]
+        if (result.extra)
+          await session?.send(markdown(result.extra))
+        const joined = result?.join(delimiter)
+        return options?.long ? `${keys[index]}: ${joined}` : joined
+      }))).join('\n')
     })
 
   ctx.command('find <values...:string>', '查找查询字符串的词典。')
