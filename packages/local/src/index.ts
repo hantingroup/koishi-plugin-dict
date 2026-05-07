@@ -48,7 +48,7 @@ class LocalDictSource extends DictSource {
     else if (typeof data === 'object' && data !== null) {
       if (typeof data.name === 'string') {
         if (typeof data.type === 'string')
-          this.pushDict(`@${name.split('/')[0]}/${data.type}`, data.name)
+          this.pushDict(`${name.split('/')[0]}#${data.type}`, data.name)
         this.pushDict(name, data.name)
         if (Array.isArray(data.children)) {
           for (const child of data.children) {
