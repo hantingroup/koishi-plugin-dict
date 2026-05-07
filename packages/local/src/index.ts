@@ -24,7 +24,7 @@ class LocalDictSource extends DictSource {
       })
       .then(() => {
         logger.info(`loaded ${this.dicts.size} dicts.`)
-        ctx.emit('dict/register', Array.from(this.dicts.keys()))
+        ctx.emit('dict-added', ...Array.from(this.dicts.keys()))
       })
   }
 

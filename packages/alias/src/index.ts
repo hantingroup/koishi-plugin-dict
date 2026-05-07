@@ -7,7 +7,7 @@ const logger = new Logger('dict-alias')
 class AliasDictSource extends DictSource {
   constructor(ctx: Context, public config: AliasDictSource.Config) {
     super(ctx)
-    ctx.on('dict/register', (names) => {
+    ctx.on('dict-added', (...names) => {
       for (const name of names) {
         const shortcut = name.split('/').pop()!
         if (shortcut !== name) {
