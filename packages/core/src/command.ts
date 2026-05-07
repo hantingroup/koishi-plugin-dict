@@ -9,19 +9,22 @@ export function apply(ctx: Context, config: Config) {
     return config.markdown ? h('markdown', content) : content
   }
 
-  ctx.command('look <key...:string>', '查询词典所有结果。')
+  ctx.command('look <keys...:string>', '查询词典所有结果。')
     .option('delimiter', '-d <delim:string> 分隔符。')
     .option('long', '-l 显示完整结果。')
-    .action(async ({ options }, ...key) => {
+    .action(async ({ options }, ...keys) => {
       const delimiter = options?.delimiter || config.delimiter
-      if (key.length === 0) {
+      if (keys.length === 0) {
         return Array.from(ctx.dict.availables)
           .map(name => options?.long ? name : name.split('/').pop())
           .join(delimiter)
       }
-      return (await Promise.all(key.map(key => ctx.dict.lookup(key))))
+      return (await Promise.all(keys.map(key => ctx.dict.lookup(key))))
         .map(result => result?.join(delimiter))
-        .map((joined, index) => options?.long ? `${key[index]}: ${joined}` : joined)
+        .map((joined, index) => joined
+          ? options?.long ? `${keys[index]}: ${joined}` : joined
+          : keys[index],
+        )
         .join('\n')
     })
 
