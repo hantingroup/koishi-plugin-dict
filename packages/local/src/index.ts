@@ -36,10 +36,28 @@ class LocalDictSource extends DictSource {
       const values = lines.length > 1 ? lines : Array.from(data)
       this.loadDict(name, values)
     }
-    else if (Array.isArray(data) && data.every(item => typeof item === 'string')) {
-      this.loadDict(name, data)
+    else if (Array.isArray(data)) {
+      if (data.every(item => typeof item === 'string')) {
+        this.loadDict(name, data)
+      }
+      else {
+        for (const item of data)
+          this.tryLoadDict(name, item)
+      }
     }
     else if (typeof data === 'object' && data !== null) {
+      if (typeof data.name === 'string') {
+        if (typeof data.type === 'string')
+          this.pushDict(`@${name.split('/')[0]}/${data.type}`, data.name)
+        this.pushDict(name, data.name)
+        if (Array.isArray(data.children)) {
+          for (const child of data.children) {
+            this.tryLoadDict(`${name}/${data.name}`, child)
+          }
+        }
+        return
+      }
+
       const keys = Object.keys(data)
       keys.length && this.loadDict(name, keys)
       for (const key of keys)
@@ -53,6 +71,10 @@ class LocalDictSource extends DictSource {
   loadDict(name: string, values: string[]) {
     this.dicts.set(name, values)
     logger.debug(`loaded dict ${name} with ${values.length} values.`)
+  }
+
+  pushDict(name: string, ...values: string[]) {
+    this.loadDict(name, [...this.dicts.get(name) || [], ...values])
   }
 
   override lookupSync(name: string): string[] {
