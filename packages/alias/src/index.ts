@@ -9,13 +9,15 @@ class AliasDictSource extends DictSource {
     super(ctx)
     ctx.on('dict-added', (...names) => {
       for (const name of names) {
-        const shortcut = name.split('/').pop()!
-        if (shortcut !== name) {
-          if (this.aliases.has(shortcut))
-            this.aliases.get(shortcut)!.push(name)
+        const path = name.split('/')
+        let suffix = path.pop()!
+        while (suffix !== name) {
+          if (this.aliases.has(suffix))
+            this.aliases.get(suffix)!.push(name)
           else
-            this.aliases.set(shortcut, [name])
-          logger.debug(`${shortcut} -> ${name}`)
+            this.aliases.set(suffix, [name])
+          logger.debug(`${suffix} -> ${name}`)
+          suffix = `${path.pop()}/${suffix}`
         }
       }
       logger.info(`resolved ${this.aliases.size} aliases.`)
