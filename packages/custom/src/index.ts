@@ -25,8 +25,8 @@ class CustomDictSource extends DictSource {
         }
       })
       .then(() => {
-        ctx.emit('dict-added', ...Array.from(this.dicts.keys()))
         logger.info(`loaded ${this.dicts.size} dicts.`)
+        ctx.emit('dict-added', ...Array.from(this.dicts.keys()))
       })
   }
 
