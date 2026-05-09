@@ -4,13 +4,8 @@ import * as Command from './command'
 
 export * from './source'
 
-export interface Config {
-  echo: boolean
-}
-
-export const Config = Schema.object({
-  echo: Schema.boolean().default(true).description('未捕获指令作为填字输出。'),
-})
+export interface Config {}
+export const Config = Schema.object({})
 
 declare module 'koishi' {
   interface Context {

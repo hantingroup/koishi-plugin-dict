@@ -1,13 +1,13 @@
 import type { Context } from 'koishi'
-import type { Config } from '.'
-import { h } from 'koishi'
+import { Argv, h, Random } from 'koishi'
 
 export const inject = ['dict']
 
-export function apply(ctx: Context, config: Config) {
-  ctx.command('look <keys...:string>', '查询词典所有结果。')
-    .option('long', '-l 显示完整结果。')
+export function apply(ctx: Context) {
+  const look = ctx.command('look <keys...:string>', '查询词典所有结果。')
+    .option('long', '-l 显示字典名。')
     .option('prefixed', '-p 添加字典前缀。')
+    .option('count', '-n <count:number> ')
     .action(async ({ session, options }, ...keys) => {
       if (keys.length === 0) {
         return Array.from(ctx.dict.availables)
@@ -15,11 +15,16 @@ export function apply(ctx: Context, config: Config) {
           .join(' ')
       }
       return (await Promise.all(keys.map(async (key, index) => {
-        const result = await ctx.dict.lookup(key)
-        if (!result.length)
-          return keys[index]
+        let result = await ctx.dict.lookup(key)
+        if (!result.length) {
+          const key = keys[index]
+          session?.send(`look ${key.search(/\s/) ? `"${key}"` : key}: 未知字典！`)
+          return key
+        }
         if (result.extra)
           await session?.send(result.extra)
+        if (options?.count)
+          result = Random.pick(result, options.count)
         const joined = options?.prefixed
           ? result.map(item => `${key}/${item}`).join(' ')
           : result.join(' ')
@@ -42,11 +47,29 @@ export function apply(ctx: Context, config: Config) {
       return options?.markdown ? h('markdown', result) : result
     })
 
-  config.echo && ctx.middleware((session, next) =>
-    void next(() => session.content && h('markdown', h.parse(
-      h.escape(session.content)
-        .replaceAll(/%\(([^()]*)\)/g, (_, key) => {
-          return `<execute>shuf $(look ${key})</execute>`
-        }),
-    ))))
+  Argv.interpolate('%(', ')', (raw) => {
+    const source = h.unescape(raw)
+    let index = 0
+    for (let depth = 1; index < source.length; index++) {
+      const current = source[index]
+      if (current === '(')
+        depth++
+      else if (current === ')' && --depth === 0)
+        break
+    }
+    const result = source.slice(0, index)
+    if (!result) {
+      const index = raw.indexOf(')')
+      if (index >= 0)
+        return { source: raw, rest: raw.slice(index + 1), tokens: [] }
+      return { source: raw, rest: '', tokens: [] }
+    }
+    return {
+      source: result,
+      command: look,
+      options: { count: 1 },
+      args: [result],
+      rest: h.escape(source.slice(result.length + 1)),
+    }
+  })
 }
