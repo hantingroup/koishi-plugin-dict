@@ -6,39 +6,62 @@ import { DictSource } from 'koishi-plugin-dict'
 
 const logger = new Logger('dict-custom')
 
+declare module 'koishi' {
+  interface Tables {
+    dict: {
+      name: string
+      values: string[]
+    }
+  }
+}
+
 class CustomDictSource extends DictSource {
+  static inject = ['dict', 'database']
+
   constructor(ctx: Context, public config: CustomDictSource.Config) {
     super(ctx)
 
+    ctx.model.extend('dict', {
+      name: 'char',
+      values: 'list',
+    }, { primary: 'name' })
+
     opendir(resolve(ctx.baseDir, 'data', 'dicts'))
       .then(async (entries) => {
+        const promises = []
         for await (const entry of entries) {
           if (!entry.isFile() || entry.name.startsWith('~'))
             continue
           const fullPath = resolve(entry.parentPath, entry.name)
           if (entry.name.endsWith('.txt')) {
             const name = entry.name.replace(/\.txt$/, '')
-            const content = await readFile(fullPath, this.config.encoding)
-            this.loadDict(name, content.split('\n')
-              .map(line => line.trim()).filter(line => line !== ''))
+            const content = await readFile(fullPath, config.encoding)
+            const values = content.split('\n')
+              .map(line => line.trim())
+              .filter(line => line !== '')
+            promises.push(ctx.database.upsert('dict', [{ name, values }]))
           }
         }
+        return Promise.all(promises)
       })
       .then(() => {
-        logger.info(`loaded ${this.dicts.size} dicts.`)
-        ctx.emit('dict-added', ...Array.from(this.dicts.keys()))
+        ctx.database.get('dict', {}, ['name'])
+          .then((names) => {
+            for (const { name } of names)
+              this.dicts.add(name)
+            logger.info(`indexed ${this.dicts.size} dicts.`)
+            ctx.emit('dict-added', ...Array.from(this.dicts.values()))
+          })
       })
   }
 
-  dicts: Map<string, string[]> = new Map()
+  dicts: Set<string> = new Set()
 
-  loadDict(name: string, values: string[]) {
-    this.dicts.set(name, values)
-    logger.debug(`loaded dict ${name} with ${values.length} values.`)
-  }
-
-  override lookupSync(name: string): string[] {
-    return this.dicts.get(name) || []
+  override async lookup(name: string): Promise<string[]> {
+    if (!this.dicts.has(name))
+      return []
+    const [dict] = await this.ctx.database.get('dict', { name })
+    return dict.values
   }
 }
 
