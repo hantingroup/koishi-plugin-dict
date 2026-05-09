@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base",
+  "compilerOptions": {
+    "rootDir": "src",
+    "paths": {
+      "koishi-plugin-dict": ["../../core/src"]
+    },
+    "outDir": "lib"
+  },
+  "references": [
+    { "path": "../core" }
+  ],
+  "include": ["src"]
+}
