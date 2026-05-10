@@ -8,6 +8,7 @@ class AliasDictSource extends DictSource {
   constructor(ctx: Context, public config: AliasDictSource.Config) {
     super(ctx)
     ctx.on('dict-added', (...names) => {
+      const before = this.aliases.size
       for (const name of names) {
         const path = name.split('/')
         let suffix = path.pop()!
@@ -20,7 +21,8 @@ class AliasDictSource extends DictSource {
           suffix = `${path.pop()}/${suffix}`
         }
       }
-      logger.info(`resolved ${this.aliases.size} aliases.`)
+      const diff = this.aliases.size - before
+      diff && logger.info(`resolved ${diff} more aliases, ${this.aliases.size} in total.`)
     })
   }
 
