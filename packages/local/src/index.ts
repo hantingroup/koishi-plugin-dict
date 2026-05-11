@@ -48,11 +48,11 @@ class LocalDictSource extends DictSource {
     else if (typeof data === 'object' && data !== null) {
       if (typeof data.name === 'string') {
         if (typeof data.type === 'string')
-          this.pushDict(`${name.split('/')[0]}#${data.type}`, data.name)
+          this.pushDict(`${name.split(this.ctx.dict.separator)[0]}#${data.type}`, data.name)
         this.pushDict(name, data.name)
         if (Array.isArray(data.children)) {
           for (const child of data.children) {
-            this.tryLoadDict(`${name}/${data.name}`, child)
+            this.tryLoadDict(`${name}${this.ctx.dict.separator}${data.name}`, child)
           }
         }
         return
@@ -61,7 +61,7 @@ class LocalDictSource extends DictSource {
       const keys = Object.keys(data)
       keys.length && this.loadDict(name, keys)
       for (const key of keys)
-        this.tryLoadDict(`${name}/${key}`, data[key])
+        this.tryLoadDict(`${name}${this.ctx.dict.separator}${key}`, data[key])
     }
     else {
       logger.warn(`unknown dict format: ${name}`)

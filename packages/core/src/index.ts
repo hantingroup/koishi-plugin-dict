@@ -4,8 +4,13 @@ import * as Command from './command'
 
 export * from './source'
 
-export interface Config {}
-export const Config = Schema.object({})
+export interface Config {
+  separator: string
+}
+
+export const Config = Schema.object({
+  separator: Schema.string().default('/').description('层级字典分隔符。'),
+})
 
 declare module 'koishi' {
   interface Context {
@@ -20,10 +25,11 @@ declare module 'koishi' {
 class DictService extends Service {
   private sources: DictSource[] = []
   readonly availables: Set<string> = new Set()
+  readonly separator: string
 
   constructor(ctx: Context, config: Config) {
     super(ctx, 'dict', true)
-    this.config = config
+    this.separator = config.separator
     ctx.on('dict-added', (...names) => {
       for (const name of names)
         this.availables.add(name)

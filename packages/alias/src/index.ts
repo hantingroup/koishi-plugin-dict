@@ -10,7 +10,7 @@ class AliasDictSource extends DictSource {
     ctx.on('dict-added', (...names) => {
       const before = this.aliases.size
       for (const name of names) {
-        const path = name.split('/')
+        const path = name.split(ctx.dict.separator)
         let suffix = path.pop()!
         while (suffix !== name) {
           if (this.aliases.has(suffix))
@@ -18,7 +18,7 @@ class AliasDictSource extends DictSource {
           else
             this.aliases.set(suffix, [name])
           logger.debug(`${suffix} -> ${name}`)
-          suffix = `${path.pop()}/${suffix}`
+          suffix = `${path.pop()}${ctx.dict.separator}${suffix}`
         }
       }
       const diff = this.aliases.size - before

@@ -11,7 +11,7 @@ export function apply(ctx: Context) {
     .action(async ({ session, options }, ...keys) => {
       if (keys.length === 0) {
         return Array.from(ctx.dict.availables)
-          .map(name => options?.long ? name : name.split('/').pop())
+          .map(name => options?.long ? name : name.split(ctx.dict.separator).pop())
           .join(' ')
       }
       return (await Promise.all(keys.map(async (key, index) => {
@@ -26,7 +26,7 @@ export function apply(ctx: Context) {
         if (options?.count)
           result = Random.pick(result, options.count)
         const joined = options?.prefixed
-          ? result.map(item => `${key}/${item}`).join(' ')
+          ? result.map(item => `${key}${ctx.dict.separator}${item}`).join(' ')
           : result.join(' ')
         return options?.long ? `${keys[index]}: ${joined}` : joined
       }))).join('\n')
