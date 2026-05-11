@@ -7,6 +7,8 @@ import { DictSource } from 'koishi-plugin-dict'
 const logger = new Logger('dict-hongzi')
 
 class HongziDictSource extends DictSource {
+  static name = 'dict-hongzi'
+
   availables: string[] = []
 
   constructor(ctx: Context, public config: HongziDictSource.Config) {

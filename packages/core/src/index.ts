@@ -1,6 +1,5 @@
 import type { DictSource, Found } from './source'
 import { Context, remove, Schema, Service } from 'koishi'
-import * as Command from './command'
 
 export * from './source'
 
@@ -23,7 +22,7 @@ declare module 'koishi' {
   }
 }
 
-class DictService extends Service {
+export default class DictService extends Service {
   private sources: DictSource[] = []
   readonly availables: Set<string> = new Set()
   readonly separator: string
@@ -67,9 +66,4 @@ class DictService extends Service {
     await Promise.all(this.sources.map(source => source.find(values, founds)))
     return founds
   }
-}
-
-export function apply(ctx: Context, config: Config) {
-  ctx.plugin(DictService, config)
-  ctx.plugin(Command, config)
 }
