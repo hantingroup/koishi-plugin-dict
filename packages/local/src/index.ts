@@ -1,5 +1,5 @@
 import type { Context } from 'koishi'
-import { opendir, readFile } from 'node:fs/promises'
+import { mkdir, opendir, readFile, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { Logger, Schema } from 'koishi'
 import { DictSource } from 'koishi-plugin-dict'
@@ -11,15 +11,33 @@ class LocalDictSource extends DictSource {
     super(ctx)
 
     ctx.on('ready', async () => {
-      const entries = await opendir(resolve(ctx.baseDir, 'data', 'dicts'))
-      for await (const entry of entries) {
+      const baseDir = resolve(ctx.baseDir, 'data', 'dicts')
+      await mkdir(baseDir, { recursive: true })
+      for await (const entry of await opendir(baseDir)) {
         if (!entry.isFile() || entry.name.startsWith('~'))
           continue
-        const fullPath = resolve(entry.parentPath, entry.name)
+        const fullPath = resolve(baseDir, entry.name)
         if (entry.name.endsWith('.json')) {
+          let needBuild = false
+          const cachedPath = resolve(baseDir, 'cache', entry.name)
           const name = entry.name.slice(0, -5)
+          if (this.config.caches.includes(name)) {
+            await mkdir(resolve(baseDir, 'cache'), { recursive: true })
+            try {
+              const content = await readFile(cachedPath, this.config.encoding)
+              this.tryLoadDict(name, JSON.parse(content))
+            }
+            catch { needBuild = true }
+          }
+
           const content = await readFile(fullPath, this.config.encoding)
           this.tryLoadDict(name, JSON.parse(content))
+
+          if (needBuild) {
+            const dicts = Object.fromEntries(this.dicts.entries()
+              .filter(([key]) => key.split(this.ctx.dict.separator)[0] === name))
+            await writeFile(cachedPath, JSON.stringify(dicts), this.config.encoding)
+          }
         }
       }
       logger.info(`loaded ${this.dicts.size} dicts.`)
@@ -88,6 +106,7 @@ class LocalDictSource extends DictSource {
 namespace LocalDictSource {
   export interface Config {
     encoding: 'ascii' | 'utf8' | 'utf16le'
+    caches: string[]
   }
 
   export const Config: Schema<Config> = Schema.object({
@@ -96,6 +115,7 @@ namespace LocalDictSource {
       Schema.const('utf8').description('UTF-8'),
       Schema.const('utf16le').description('UTF-16LE'),
     ]).default('utf8').description('文本文件编码。'),
+    caches: Schema.array(Schema.string()).description('预构建的字典。'),
   })
 }
 
