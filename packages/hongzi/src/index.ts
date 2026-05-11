@@ -17,9 +17,20 @@ class HongziDictSource extends DictSource {
       ctx.emit('dict-added', ...this.availables)
     })
 
-    this.ctx.on('dispose', () => {
+    ctx.on('dispose', () => {
       ctx.emit('dict-removed', ...this.availables)
     })
+
+    ctx.command('tianzi <message:text>', '薨机的填字。')
+      .action(async (_, message) => {
+        if (!message.includes('[[') || !message.includes(']]'))
+          return message
+        const { translated } = await ctx.http.post(
+          `${this.config.endpoint}/translate`,
+          { text: message },
+        )
+        return translated
+      })
   }
 
   override async lookup(name: string): Promise<string[]> {
