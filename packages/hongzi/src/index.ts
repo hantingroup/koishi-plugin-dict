@@ -1,4 +1,5 @@
 import type { Context } from 'koishi'
+import type { Found } from 'koishi-plugin-dict'
 import {} from '@koishijs/plugin-help'
 import { Logger, Schema } from 'koishi'
 import { DictSource } from 'koishi-plugin-dict'
@@ -44,6 +45,14 @@ class HongziDictSource extends DictSource {
       return []
     const url = `${this.config.endpoint}/list/${encodeURIComponent(name)}`
     return await this.ctx.http.get(url)
+  }
+
+  async find(values: string[], founds: Record<string, Found[]>) {
+    for (const value of values) {
+      const result: string[] = await this.ctx.http
+        .get(`${this.config.endpoint}/find/${encodeURIComponent(value)}`)
+      founds[value].push(...result.map(name => ({ name, weak: false })))
+    }
   }
 }
 
