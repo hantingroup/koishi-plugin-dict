@@ -34,10 +34,10 @@ class HongziDictSource extends DictSource {
   }
 
   override async lookup(name: string): Promise<string[]> {
-    return this.availables.includes(name)
-      ? await this.ctx.http
-          .get(`${this.config.endpoint}/list/${encodeURIComponent(name)}`)
-      : []
+    if (!this.availables.includes(name))
+      return []
+    const url = `${this.config.endpoint}/list/${encodeURIComponent(name)}`
+    return await this.ctx.http.get(url)
   }
 }
 
