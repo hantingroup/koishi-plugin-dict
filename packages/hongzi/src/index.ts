@@ -1,7 +1,7 @@
 import type { Context } from 'koishi'
 import type { Found } from 'koishi-plugin-dict'
 import {} from '@koishijs/plugin-help'
-import { Logger, Schema } from 'koishi'
+import { h, Logger, Schema } from 'koishi'
 import { DictSource } from 'koishi-plugin-dict'
 
 const logger = new Logger('dict-hongzi')
@@ -36,7 +36,7 @@ class HongziDictSource extends DictSource {
         })
         if (debug)
           session?.send(callstack)
-        return translated
+        return h.text(translated)
       })
   }
 
