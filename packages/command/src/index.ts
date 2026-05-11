@@ -1,6 +1,8 @@
 import type { Context } from 'koishi'
 import { Argv, h, Random } from 'koishi'
+import {} from 'koishi-plugin-dict'
 
+export const name = 'dict'
 export const inject = ['dict']
 
 export function apply(ctx: Context) {
@@ -9,11 +11,9 @@ export function apply(ctx: Context) {
     .option('prefixed', '-p 添加字典前缀。')
     .option('count', '-n <count:number> ')
     .action(async ({ session, options }, ...keys) => {
-      if (keys.length === 0) {
-        return Array.from(ctx.dict.availables)
-          .map(name => options?.long ? name : name.split(ctx.dict.separator).pop())
-          .join(' ')
-      }
+      if (!keys.length)
+        return '请输入要查询的词典，或使用 look.list 显示所有词典。'
+
       return (await Promise.all(keys.map(async (key, index) => {
         let result = await ctx.dict.lookup(key)
         if (!result.length) {
@@ -30,6 +30,16 @@ export function apply(ctx: Context) {
           : result.join(' ')
         return options?.long ? `${keys[index]}: ${joined}` : joined
       }))).join('\n')
+    })
+    .subcommand('.list [prefix:string]', '显示所有词典。')
+    .option('long', '-l 显示字典全名。')
+    .option('depth', '-d <depth:number> 字典深度。')
+    .action(async ({ options }, prefix = '') => {
+      const names = Array.from(ctx.dict.availables)
+        .filter(name => name.startsWith(prefix))
+        .filter(name => name.split(ctx.dict.separator).length <= (options?.depth || 1))
+        .map(name => options?.long ? name : name.split(ctx.dict.separator).pop())
+      return names.join(' ')
     })
 
   ctx.command('find <...values:string>', '查找查询字符串的词典。')
