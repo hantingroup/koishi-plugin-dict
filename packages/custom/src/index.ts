@@ -18,6 +18,8 @@ declare module 'koishi' {
 class CustomDictSource extends DictSource {
   static inject = ['dict', 'database']
 
+  availables: Set<string> = new Set()
+
   constructor(ctx: Context, public config: CustomDictSource.Config) {
     super(ctx)
 
@@ -26,22 +28,89 @@ class CustomDictSource extends DictSource {
       values: 'list',
     }, { primary: 'name' })
 
-    ctx.on('ready', async () => {
-      if (this.config.sync) {
-        await this.sync()
-        this.config.sync = false
-        ctx.scope.update(config)
-      }
+    ctx.command('push [name:string] [...values:string]', '添加字典值。')
+      .alias('append', '添加')
+      .alias('delete', { options: { remove: true } })
+      .alias('remove', { options: { remove: true } })
+      .alias('删除', { options: { remove: true } })
+      .alias('移除', { options: { remove: true } })
+      .option('force', '-f 强制添加。')
+      .option('remove', '-r 移除字典值。')
+      .option('separator', '-s <sep:string> 分隔符。')
+      .example(`\`push <name> <value>\` 添加value到%(<name>)。`)
+      .action(async ({ session, options }, name, ...values) => {
+        if (!session)
+          return
 
+        if (!values.length) {
+          if (!options?.remove)
+            return `请提供要添加的值。`
+
+          if (!options.force)
+            return `如要移除字典 %(${name})，请使用 --force 选项。`
+
+          await ctx.database.remove('dict', { name })
+          return `已成功移除字典 %(${name})。`
+        }
+
+        if (!this.availables.has(name)) {
+          if (options?.remove)
+            return `字典 %(${name}) 不存在。`
+          await ctx.database.upsert('dict', [{ name, values: [] }])
+          this.availables.add(name)
+        }
+
+        const [dict] = await ctx.database.get('dict', { name })
+
+        const success: string[] = []
+        const failed: string[] = []
+
+        for (const item of values) {
+          const index = dict.values.indexOf(item)
+          if (options?.remove) {
+            if (index !== -1)
+              success.push(dict.values.splice(index, 1)[0])
+            else
+              failed.push(item)
+          }
+          else {
+            if ((index === -1 && !success.includes(item)) || options?.force)
+              success.push(item)
+            else
+              failed.push(item)
+          }
+        }
+
+        if (options?.remove) {
+          if (success.length)
+            await session.send(`移除成功：${success.join(' ')}`)
+          if (failed.length)
+            await session.send(`移除失败，以下值不存在：${failed.join(' ')}`)
+        }
+        else {
+          if (success.length === 0) {
+            await ctx.database.remove('dict', { name })
+            return `添加失败：所有值都已存在，您可以使用 --force 选项强制添加。`
+          }
+          dict.values.push(...success)
+          await session.send(`添加成功：${success.join(' ')}`)
+          if (failed.length)
+            await session.send(`添加失败，以下值已存在：${failed.join(' ')}`)
+        }
+
+        await ctx.database.upsert('dict', [dict])
+      })
+
+    ctx.on('ready', async () => {
       const dicts = await ctx.database.get('dict', {}, ['name'])
       for (const { name } of dicts)
-        this.dicts.add(name)
-      logger.info(`indexed ${this.dicts.size} dicts.`)
-      ctx.emit('dict-added', ...this.dicts.values())
+        this.availables.add(name)
+      logger.info(`indexed ${this.availables.size} dicts.`)
+      ctx.emit('dict-added', ...this.availables.values())
     })
 
     ctx.on('dispose', () => {
-      ctx.emit('dict-removed', ...this.dicts.values())
+      ctx.emit('dict-removed', ...this.availables.values())
     })
   }
 
@@ -64,10 +133,8 @@ class CustomDictSource extends DictSource {
     await Promise.all(promises)
   }
 
-  dicts: Set<string> = new Set()
-
   override async lookup(name: string): Promise<string[]> {
-    if (!this.dicts.has(name))
+    if (!this.availables.has(name))
       return []
     const [dict] = await this.ctx.database.get('dict', { name })
     return dict.values
@@ -76,12 +143,10 @@ class CustomDictSource extends DictSource {
 
 namespace CustomDictSource {
   export interface Config {
-    sync: boolean
     encoding: 'ascii' | 'utf8' | 'utf16le'
   }
 
   export const Config: Schema<Config> = Schema.object({
-    sync: Schema.boolean().default(false).description('同步文件系统。'),
     encoding: Schema.union([
       Schema.const('ascii').description('ASCII'),
       Schema.const('utf8').description('UTF-8'),
