@@ -22,13 +22,19 @@ class HongziDictSource extends DictSource {
     })
 
     ctx.command('hongzi <message:text>', '薨机的填字。')
-      .action(async (_, message) => {
+      .option('debug', '-d 显示调用栈。')
+      .action(async ({ session, options }, message) => {
         if (!message.includes('[[') || !message.includes(']]'))
           return message
-        const { translated } = await ctx.http.post(
-          `${this.config.endpoint}/translate`,
-          { text: message },
-        )
+        const debug = (options ??= {}).debug
+        delete options.debug
+        const url = `${this.config.endpoint}/translate`
+        const { translated, callstack } = await ctx.http.post(url, {
+          text: message,
+          variables: options,
+        })
+        if (debug)
+          session?.send(callstack)
         return translated
       })
   }
