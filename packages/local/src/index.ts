@@ -58,7 +58,7 @@ class LocalDictSource extends DictSource {
     })
   }
 
-  async availables(): Promise<string[]> {
+  override async availables(): Promise<string[]> {
     const dicts = await this.ctx.database.get('dict', {}, ['name'])
     return dicts.map(({ name }) => name)
   }

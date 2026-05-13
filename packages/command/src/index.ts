@@ -45,8 +45,9 @@ export function apply(ctx: Context) {
 
   ctx.command('find <...values:string>', '查找查询字符串的词典。')
     .option('markdown', '-m 启用 markdown 输出。')
+    .option('all', '-a 包含弱匹配结果。')
     .action(async ({ options }, ...values) => {
-      const result = Object.entries(await ctx.dict.find(...values))
+      const result = Object.entries(await ctx.dict.find(values, options?.all))
         .map(([key, founds]) => `${key}: ${founds
           .sort((a, b) => +a.weak - +b.weak)
           .map(found => found.weak

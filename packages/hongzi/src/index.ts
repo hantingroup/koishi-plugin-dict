@@ -9,19 +9,24 @@ const logger = new Logger('dict-hongzi')
 class HongziDictSource extends DictSource {
   static name = 'dict-hongzi'
 
-  availables: string[] = []
+  names: Set<string> = new Set()
+
+  override async availables(): Promise<Iterable<string>> {
+    return this.names
+  }
 
   constructor(ctx: Context, public config: HongziDictSource.Config) {
     super(ctx)
 
     ctx.on('ready', async () => {
-      this.availables = await ctx.http.get(`${this.config.endpoint}/list`)
-      logger.info(`indexed ${this.availables.length} dicts`)
-      ctx.emit('dict-added', ...this.availables)
+      const list = await ctx.http.get(`${this.config.endpoint}/list`)
+      this.names = new Set(list)
+      logger.info(`indexed ${this.names.size} dicts`)
+      ctx.emit('dict-added', ...this.names)
     })
 
     ctx.on('dispose', () => {
-      ctx.emit('dict-removed', ...this.availables)
+      ctx.emit('dict-removed', ...this.names)
     })
 
     ctx.command('hongzi <message:text>', '薨机的填字。')
@@ -55,7 +60,7 @@ class HongziDictSource extends DictSource {
   }
 
   override async lookup(name: string): Promise<string[]> {
-    if (!this.availables.includes(name))
+    if (!this.names.has(name))
       return []
     const url = `${this.config.endpoint}/list/${encodeURIComponent(name)}`
     return await this.ctx.http.get(url)

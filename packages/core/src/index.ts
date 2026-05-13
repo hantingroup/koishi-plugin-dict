@@ -73,9 +73,9 @@ export default class DictService extends Service {
     })
   }
 
-  async find(...values: string[]): Promise<Record<string, Found[]>> {
+  async find(values: string[], includeWeaks = false): Promise<Record<string, Found[]>> {
     const founds = Object.fromEntries(values.map(value => [value, []]))
-    await Promise.all(this.sources.map(source => source.find(values, founds)))
+    await Promise.all(this.sources.map(source => source.find(values, founds, includeWeaks)))
     return founds
   }
 }

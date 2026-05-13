@@ -12,20 +12,22 @@ export abstract class DictSource {
     this.ctx.dict.register(this)
   }
 
+  async availables(): Promise<Iterable<string>> { return [] }
+
   // eslint-disable-next-line unused-imports/no-unused-vars
   lookupSync(name: string): string[] { return [] }
   async lookup(name: string): Promise<string[] & { extra?: string }> {
     return this.lookupSync(name)
   }
 
-  async find(values: string[], founds: Record<string, Found[]>) {
-    for (const name of this.ctx.dict.availables) {
+  async find(values: string[], founds: Record<string, Found[]>, includeWeaks = false) {
+    for (const name of await this.availables()) {
       const result = await this.lookup(name) || []
-      const collected = result.join(' ')
+      const collected = includeWeaks ? result.join(' ') : ''
       for (const value of values) {
         if (result.includes(value))
           (founds[value] ||= []).push({ name, weak: false })
-        else if (collected.includes(value))
+        else if (includeWeaks && collected.includes(value))
           (founds[value] ||= []).push({ name, weak: true })
       }
     }

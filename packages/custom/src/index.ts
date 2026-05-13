@@ -19,6 +19,12 @@ class CustomDictSource extends DictSource {
   static name = 'dict-custom'
   static inject = ['dict', 'database']
 
+  names: Set<string> = new Set()
+
+  override async availables(): Promise<Iterable<string>> {
+    return this.names
+  }
+
   constructor(ctx: Context, public config: CustomDictSource.Config) {
     super(ctx)
 
@@ -33,20 +39,18 @@ class CustomDictSource extends DictSource {
 
       const dicts = await ctx.database.get('custom_dict', {}, ['name'])
       for (const { name } of dicts)
-        this.availables.add(name)
-      logger.info(`indexed ${this.availables.size} dicts.`)
-      ctx.emit('dict-added', ...this.availables.values())
+        this.names.add(name)
+      logger.info(`indexed ${this.names.size} dicts.`)
+      ctx.emit('dict-added', ...this.names.values())
     })
 
     ctx.on('dispose', () => {
-      ctx.emit('dict-removed', ...this.availables.values())
+      ctx.emit('dict-removed', ...this.names.values())
     })
   }
 
-  availables: Set<string> = new Set()
-
   override async lookup(name: string): Promise<string[]> {
-    if (!this.availables.has(name))
+    if (!this.names.has(name))
       return []
     const [dict] = await this.ctx.database.get('custom_dict', { name })
     return dict.values
