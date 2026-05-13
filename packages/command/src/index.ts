@@ -6,29 +6,29 @@ export const name = 'dict'
 export const inject = ['dict']
 
 export function apply(ctx: Context) {
-  const look = ctx.command('look <...keys:string>', '查询词典所有结果。')
+  const look = ctx.command('look <...names:string>', '查询词典所有结果。')
     .option('long', '-l 显示字典名。')
     .option('prefixed', '-p 添加字典前缀。')
     .option('count', '-n <count:number> ')
-    .action(async ({ session, options }, ...keys) => {
-      if (!keys.length)
+    .action(async ({ session, options }, ...names) => {
+      if (!names.length)
         return '请输入要查询的词典，或使用 look.list 显示所有词典。'
 
-      return (await Promise.all(keys.map(async (key, index) => {
-        let result = await ctx.dict.lookup(key)
+      return (await Promise.all(names.map(async (name, index) => {
+        let result = await ctx.dict.lookup(name)
         if (!result.length) {
-          const key = keys[index]
-          session?.send(`look ${key.search(/\s/) ? `"${key}"` : key}: 未知字典！`)
-          return key
+          const name = names[index]
+          session?.send(`look ${name.search(/\s/) ? `"${name}"` : name}: 未知字典！`)
+          return name
         }
         if (result.extra)
           await session?.send(result.extra)
         if (options?.count)
           result = Random.pick(result, options.count)
         const joined = options?.prefixed
-          ? result.map(item => ctx.dict.join(key, item)).join(' ')
+          ? result.map(item => ctx.dict.join(name, item)).join(' ')
           : result.join(' ')
-        return options?.long ? `${keys[index]}: ${joined}` : joined
+        return options?.long ? `${names[index]}: ${joined}` : joined
       }))).join('\n')
     })
 

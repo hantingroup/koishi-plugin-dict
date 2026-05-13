@@ -50,14 +50,14 @@ class AliasDictSource extends DictSource {
 
   aliases: Map<string, string[]> = new Map()
 
-  override lookup(key: string) {
-    const names = this.aliases.get(key) || []
+  override lookup(name: string) {
+    const names = this.aliases.get(name) || []
     if (names.length === 0)
       return Promise.resolve([])
     if (names.length === 1)
       return this.ctx.dict.lookup(names[0])
     return Promise.resolve(Object.assign(names, {
-      extra: `冲突别名！${key} -> ${names.join(' ')}`,
+      extra: `冲突别名！${name} -> ${names.join(' ')}`,
     }))
   }
 }
