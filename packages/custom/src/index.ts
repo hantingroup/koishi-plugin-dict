@@ -8,7 +8,7 @@ const logger = new Logger('dict-custom')
 
 declare module 'koishi' {
   interface Tables {
-    dict: {
+    custom_dict: {
       name: string
       values: string[]
     }
@@ -24,7 +24,7 @@ class CustomDictSource extends DictSource {
   constructor(ctx: Context, public config: CustomDictSource.Config) {
     super(ctx)
 
-    ctx.model.extend('dict', {
+    ctx.model.extend('custom_dict', {
       name: 'char',
       values: 'list',
     }, { primary: 'name' })
@@ -52,14 +52,14 @@ class CustomDictSource extends DictSource {
 
           this.availables.delete(name)
           this.ctx.emit('dict-removed', name)
-          await this.ctx.database.remove('dict', { name })
+          await this.ctx.database.remove('custom_dict', { name })
           return `已成功移除字典 %(${name})。`
         }
 
         let dict = { name, values: [] as string[] }
 
         if (this.availables.has(name)) {
-          [dict] = await ctx.database.get('dict', { name })
+          [dict] = await ctx.database.get('custom_dict', { name })
         }
         else if (options?.remove) {
           return `字典 %(${name}) 不存在。`
@@ -100,7 +100,7 @@ class CustomDictSource extends DictSource {
             await session.send(`添加失败，以下值已存在：${failed.join(' ')}`)
         }
 
-        await this.ctx.database.upsert('dict', [{ name, values }])
+        await this.ctx.database.upsert('custom_dict', [{ name, values }])
         if (!this.availables.has(name)) {
           this.availables.add(name)
           this.ctx.emit('dict-added', name)
@@ -108,7 +108,7 @@ class CustomDictSource extends DictSource {
       })
 
     ctx.on('ready', async () => {
-      const dicts = await ctx.database.get('dict', {}, ['name'])
+      const dicts = await ctx.database.get('custom_dict', {}, ['name'])
       for (const { name } of dicts)
         this.availables.add(name)
       logger.info(`indexed ${this.availables.size} dicts.`)
@@ -133,7 +133,7 @@ class CustomDictSource extends DictSource {
         const values = content.split('\n')
           .map(line => line.trim())
           .filter(line => line !== '')
-        promises.push(this.ctx.database.upsert('dict', [{ name, values }]))
+        promises.push(this.ctx.database.upsert('custom_dict', [{ name, values }]))
       }
     }
     await Promise.all(promises)
@@ -142,7 +142,7 @@ class CustomDictSource extends DictSource {
   override async lookup(name: string): Promise<string[]> {
     if (!this.availables.has(name))
       return []
-    const [dict] = await this.ctx.database.get('dict', { name })
+    const [dict] = await this.ctx.database.get('custom_dict', { name })
     return dict.values
   }
 }
