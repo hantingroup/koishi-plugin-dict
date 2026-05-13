@@ -24,6 +24,8 @@ class AlgebraDictSource extends DictSource {
   override async lookup(name: string) {
     if (this.caches.has(name))
       return this.caches.get(name)!
+    if (name.includes(' '))
+      return name.split(' ')
     for (const [operator, resolve] of Object.entries(this.binaryOperators)) {
       if (name.includes(operator)) {
         const [lhs, rhs] = name.split(operator, 2)
