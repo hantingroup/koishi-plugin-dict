@@ -22,6 +22,8 @@ export abstract class DictSource {
 
   async find(values: string[], founds: Record<string, Found[]>, includeWeaks = false) {
     for (const name of await this.availables()) {
+      if (name.includes('#'))
+        continue
       const result = await this.lookup(name) || []
       const collected = includeWeaks ? result.join(' ') : ''
       for (const value of values) {
