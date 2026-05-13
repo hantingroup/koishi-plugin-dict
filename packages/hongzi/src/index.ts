@@ -1,7 +1,7 @@
 import type { Context } from 'koishi'
 import type { Found } from 'koishi-plugin-dict'
 import {} from '@koishijs/plugin-help'
-import { Argv, h, Logger, Schema } from 'koishi'
+import { h, Logger, omit, Schema } from 'koishi'
 import { DictSource } from 'koishi-plugin-dict'
 
 const logger = new Logger('dict-hongzi')
@@ -24,46 +24,33 @@ class HongziDictSource extends DictSource {
       ctx.emit('dict-removed', ...this.availables)
     })
 
-    const hongzi = ctx.command('hongzi <message:text>', '薨机的填字。')
+    ctx.command('hongzi <message:text>', '薨机的填字。')
       .option('debug', '-d 显示调用栈。')
-      .action(async ({ session, options }, message) => {
+      .action(async ({ session, options = {} }, message) => {
         if (!message.includes('[[') || !message.includes(']]'))
           return message
-        const debug = (options ??= {}).debug
-        delete options.debug
-        const url = `${this.config.endpoint}/translate`
-        const { translated, callstack } = await ctx.http.post(url, {
-          text: message,
-          variables: options,
-        })
-        if (debug)
-          session?.send(callstack)
-        return h.text(translated)
+        const res = await this.translate(message, omit(options, ['debug']))
+        options.debug && await session?.send(res.callstack)
+        return h.text(res.translated)
       })
 
-    Argv.interpolate('[[', ']]', (raw) => {
-      const source = h.unescape(raw)
-      let index = 0
-      for (let depth = 1; index < source.length; index++) {
-        const current = source[index]
-        if (current === '[[')
-          depth++
-        else if (current === ']]' && --depth === 0)
-          break
+    ctx.middleware(async (session, next) => {
+      if (session.content?.includes('[[') && session.content.includes(']]')) {
+        const { translated } = await this.translate(session.content)
+        session.content = translated
       }
-      const result = source.slice(0, index - 2)
-      if (!result) {
-        const index = raw.indexOf(']]')
-        if (index >= 0)
-          return { source: raw, rest: raw.slice(index + 2), tokens: [] }
-        return { source: raw, rest: '', tokens: [] }
-      }
-      return {
-        source: result,
-        command: hongzi,
-        args: [result],
-        rest: h.escape(source.slice(result.length + 2)),
-      }
+      return next()
+    }, true)
+  }
+
+  async translate(message: string, options: Record<string, string> = {}) {
+    const url = `${this.config.endpoint}/translate`
+    return await this.ctx.http.post<{
+      translated: string
+      callstack: string
+    }>(url, {
+      text: message,
+      variables: options,
     })
   }
 
