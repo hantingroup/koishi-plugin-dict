@@ -26,7 +26,7 @@ export function apply(ctx: Context) {
         if (options?.count)
           result = Random.pick(result, options.count)
         const joined = options?.prefixed
-          ? result.map(item => `${key}${ctx.dict.separator}${item}`).join(' ')
+          ? result.map(item => ctx.dict.join(key, item)).join(' ')
           : result.join(' ')
         return options?.long ? `${keys[index]}: ${joined}` : joined
       }))).join('\n')
@@ -38,8 +38,8 @@ export function apply(ctx: Context) {
     .action(async ({ options }, prefix = '') => {
       const names = Array.from(ctx.dict.availables)
         .filter(name => name.startsWith(prefix))
-        .filter(name => name.split(ctx.dict.separator).length <= (options?.depth || 1))
-        .map(name => options?.long ? name : name.split(ctx.dict.separator).pop())
+        .filter(name => ctx.dict.split(name).length <= (options?.depth || 1))
+        .map(name => options?.long ? name : ctx.dict.split(name).pop())
       return names.join(' ')
     })
 
