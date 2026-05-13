@@ -1,114 +1,128 @@
 import type { Context } from 'koishi'
-import { mkdir, opendir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readdir, readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { Logger, Schema } from 'koishi'
 import { DictSource } from 'koishi-plugin-dict'
 
 const logger = new Logger('dict-local')
 
+declare module 'koishi' {
+  interface Tables {
+    dict: {
+      name: string
+      values: string[]
+    }
+  }
+}
+
 class LocalDictSource extends DictSource {
   static name = 'dict-local'
+  static inject = ['dict', 'database']
 
   constructor(ctx: Context, public config: LocalDictSource.Config) {
     super(ctx)
 
+    ctx.model.extend('dict', {
+      name: 'char',
+      values: 'list',
+    }, { primary: 'name' })
+
     ctx.on('ready', async () => {
+      let availables = await this.availables()
       const baseDir = resolve(ctx.baseDir, 'data', 'dicts')
       await mkdir(baseDir, { recursive: true })
-      for await (const entry of await opendir(baseDir)) {
-        if (!entry.isFile() || entry.name.startsWith('~'))
-          continue
-        const fullPath = resolve(baseDir, entry.name)
-        if (entry.name.endsWith('.json')) {
-          let needBuild = false
-          const cachedPath = resolve(baseDir, 'cache', entry.name)
-          const name = entry.name.slice(0, -5)
-          if (this.config.caches.includes(name)) {
-            await mkdir(resolve(baseDir, 'cache'), { recursive: true })
-            try {
-              const content = await readFile(cachedPath, this.config.encoding)
-              this.tryLoadDict(name, JSON.parse(content))
+      const dirents = await readdir(baseDir, { withFileTypes: true })
+      const promises = dirents
+        .filter(dirent => dirent.isFile() && !dirent.name.startsWith('~'))
+        .map(async (dirent) => {
+          const fullPath = resolve(baseDir, dirent.name)
+          if (dirent.name.endsWith('.json')) {
+            const name = dirent.name.slice(0, -5)
+            if (availables.includes(name)) {
+              logger.info(`dict ${name} already loaded.`)
+              return
             }
-            catch { needBuild = true }
+            const content = await readFile(fullPath, this.config.encoding)
+            await this.tryLoadDict(name, JSON.parse(content))
           }
-
-          const content = await readFile(fullPath, this.config.encoding)
-          this.tryLoadDict(name, JSON.parse(content))
-
-          if (needBuild) {
-            const dicts = Object.fromEntries(this.dicts.entries()
-              .filter(([key]) => key.split(this.ctx.dict.separator)[0] === name))
-            await writeFile(cachedPath, JSON.stringify(dicts), this.config.encoding)
-          }
-        }
-      }
-      logger.info(`loaded ${this.dicts.size} dicts.`)
-      ctx.emit('dict-added', ...this.dicts.keys())
+        })
+      await Promise.all(promises)
+      availables = await this.availables()
+      logger.info(`loaded ${availables.length} dicts.`)
+      ctx.emit('dict-added', ...availables)
     })
 
-    ctx.on('dispose', () => {
-      ctx.emit('dict-removed', ...this.dicts.keys())
+    ctx.on('dispose', async () => {
+      const availables = await this.availables()
+      ctx.emit('dict-removed', ...availables)
     })
   }
 
-  dicts: Map<string, string[]> = new Map()
+  async availables(): Promise<string[]> {
+    const dicts = await this.ctx.database.get('dict', {}, ['name'])
+    return dicts.map(({ name }) => name)
+  }
 
-  tryLoadDict(name: string, data: any) {
+  async tryLoadDict(name: string, data: any) {
     if (typeof data === 'string') {
       const lines = data.split('\n').filter(line => line.trim() !== '')
       const values = lines.length > 1 ? lines : Array.from(data)
-      this.loadDict(name, values)
+      await this.loadDict(name, values)
     }
     else if (Array.isArray(data)) {
       if (data.every(item => typeof item === 'string')) {
-        this.loadDict(name, data)
+        await this.loadDict(name, data)
       }
       else {
         for (const item of data)
-          this.tryLoadDict(name, item)
+          await this.tryLoadDict(name, item)
       }
     }
     else if (typeof data === 'object' && data !== null) {
       if (typeof data.name === 'string') {
         if (typeof data.type === 'string')
-          this.pushDict(`${name.split(this.ctx.dict.separator)[0]}#${data.type}`, data.name)
-        this.pushDict(name, data.name)
+          await this.pushDict(`${name.split(this.ctx.dict.separator)[0]}#${data.type}`, data.name)
+        await this.pushDict(name, data.name)
         if (Array.isArray(data.children)) {
           for (const child of data.children) {
-            this.tryLoadDict(`${name}${this.ctx.dict.separator}${data.name}`, child)
+            await this.tryLoadDict(`${name}${this.ctx.dict.separator}${data.name}`, child)
           }
         }
         return
       }
 
       const keys = Object.keys(data)
-      keys.length && this.loadDict(name, keys)
+      keys.length && await this.loadDict(name, keys)
       for (const key of keys)
-        this.tryLoadDict(`${name}${this.ctx.dict.separator}${key}`, data[key])
+        await this.tryLoadDict(`${name}${this.ctx.dict.separator}${key}`, data[key])
     }
     else {
       logger.warn(`unknown dict format: ${name}`)
     }
   }
 
-  loadDict(name: string, values: string[]) {
-    this.dicts.set(name, values)
-    logger.debug(`loaded dict ${name} with ${values.length} values.`)
+  async loadDict(name: string, values: string[]) {
+    await this.ctx.database.upsert('dict', [{ name, values }])
+    logger.info(`loaded dict ${name} with ${values.length} values.`)
   }
 
-  pushDict(name: string, ...values: string[]) {
-    this.loadDict(name, [...this.dicts.get(name) || [], ...values])
+  async pushDict(name: string, ...items: string[]) {
+    const dict = await this.ctx.database.get('dict', { name })
+    const values = dict[0]?.values || []
+    values.push(...items)
+    await this.ctx.database.upsert('dict', [{ name, values }])
+    logger.debug(`pushed ${items.length} values to dict ${name}.`)
   }
 
-  override lookupSync(name: string): string[] {
-    return this.dicts.get(name) || []
+  override async lookup(name: string): Promise<string[]> {
+    const [dict] = await this.ctx.database.get('dict', { name })
+    return dict?.values || []
   }
 }
 
 namespace LocalDictSource {
   export interface Config {
     encoding: 'ascii' | 'utf8' | 'utf16le'
-    caches: string[]
   }
 
   export const Config: Schema<Config> = Schema.object({
@@ -117,7 +131,6 @@ namespace LocalDictSource {
       Schema.const('utf8').description('UTF-8'),
       Schema.const('utf16le').description('UTF-16LE'),
     ]).default('utf8').description('文本文件编码。'),
-    caches: Schema.array(Schema.string()).description('预构建的字典。'),
   })
 }
 
