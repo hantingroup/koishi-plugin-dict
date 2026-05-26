@@ -48,6 +48,7 @@ class LocalDictSource extends DictSource {
           }
         })
       await Promise.all(promises)
+      await this.flush()
       availables = await this.availables()
       logger.info(`loaded ${availables.length} dicts.`)
       ctx.emit('dict-added', ...availables)
@@ -108,17 +109,32 @@ class LocalDictSource extends DictSource {
     }
   }
 
+  buffer: Map<string, string[]> = new Map()
+
   async loadDict(name: string, values: string[]) {
-    await this.ctx.database.upsert('dict', [{ name, values }])
-    logger.info(`loaded dict ${name} with ${values.length} values.`)
+    this.buffer.set(name, values)
+    if (this.buffer.size >= this.config.maxBufferSize)
+      await this.flush()
   }
 
-  async pushDict(name: string, ...items: string[]) {
-    const dict = await this.ctx.database.get('dict', { name })
-    const values = dict[0]?.values || []
-    values.push(...items)
-    await this.ctx.database.upsert('dict', [{ name, values }])
-    logger.info(`pushed ${items} to dict ${name}.`)
+  async pushDict(name: string, values: string[]) {
+    await this.loadDict(name, [...this.buffer.get(name) || [], ...values])
+  }
+
+  async flush() {
+    const dicts = new Map((await this.ctx.database.get('dict', {
+      name: Array.from(this.buffer.keys()),
+    })).map(dict => [dict.name, dict.values]))
+    for (const [name, items] of this.buffer)
+      dicts.set(name, [...dicts.get(name) || [], ...items])
+    const entries = Array.from(dicts.entries())
+      .map(([name, values]) => ({ name, values }))
+    await this.ctx.database.upsert('dict', entries)
+    if (entries.length) {
+      logger.info(`flushed ${entries.length} dicts, `
+        + `from ${entries[0].name} to ${entries[entries.length - 1].name}.`)
+    }
+    this.buffer.clear()
   }
 
   override async lookup(name: string): Promise<string[]> {
@@ -155,10 +171,12 @@ class LocalDictSource extends DictSource {
 
 namespace LocalDictSource {
   export interface Config {
+    maxBufferSize: number
     encoding: 'ascii' | 'utf8' | 'utf16le'
   }
 
   export const Config: Schema<Config> = Schema.object({
+    maxBufferSize: Schema.number().default(1000).description('最大缓冲字典数量。'),
     encoding: Schema.union([
       Schema.const('ascii').description('ASCII'),
       Schema.const('utf8').description('UTF-8'),
