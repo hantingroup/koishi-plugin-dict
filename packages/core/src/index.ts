@@ -1,4 +1,4 @@
-import type { DictSource, Found } from './source'
+import type { DictSource, FindOptions, Found } from './source'
 import { Context, remove, Schema, Service } from 'koishi'
 
 export * from './source'
@@ -73,9 +73,9 @@ export default class DictService extends Service {
     })
   }
 
-  async find(values: string[], includeWeaks = false): Promise<Record<string, Found[]>> {
+  async find(values: string[], options: FindOptions): Promise<Record<string, Found[]>> {
     const founds = Object.fromEntries(values.map(value => [value, []]))
-    await Promise.all(this.sources.map(source => source.find(values, founds, includeWeaks)))
+    await Promise.all(this.sources.map(source => source.find(values, founds, options)))
     return founds
   }
 }

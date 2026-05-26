@@ -41,7 +41,7 @@ class HongziDictSource extends DictSource {
     for (const value of values) {
       const result: string[] = await this.ctx.http
         .get(`${this.config.endpoint}/find/${encodeURIComponent(value)}`)
-      founds[value].push(...result.map(name => ({ name, weak: false })))
+      founds[value].push(...result.map(name => ({ name })))
     }
   }
 }

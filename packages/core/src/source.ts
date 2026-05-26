@@ -1,8 +1,13 @@
 import type { Context } from 'koishi'
 
-export interface Found {
-  name: string
-  weak: boolean
+export type Found = Partial<FoundExtras> & { name: string }
+
+export interface FoundExtras {
+  weak?: boolean
+}
+
+export interface FindOptions {
+  weak?: boolean
 }
 
 export abstract class DictSource {
@@ -20,16 +25,20 @@ export abstract class DictSource {
     return this.lookupSync(name)
   }
 
-  async find(values: string[], founds: Record<string, Found[]>, includeWeaks = false) {
+  async find(
+    values: string[],
+    founds: Record<string, Found[]>,
+    options: FindOptions,
+  ) {
     for (const name of await this.availables()) {
       if (name.includes('#'))
         continue
       const result = await this.lookup(name) || []
-      const collected = includeWeaks ? result.join(' ') : ''
+      const collected = options.weak ? result.join(' ') : ''
       for (const value of values) {
         if (result.includes(value))
-          (founds[value] ||= []).push({ name, weak: false })
-        else if (includeWeaks && collected.includes(value))
+          (founds[value] ||= []).push({ name })
+        else if (options.weak && collected.includes(value))
           (founds[value] ||= []).push({ name, weak: true })
       }
     }
