@@ -85,24 +85,21 @@ class LocalDictSource extends DictSource {
         if (typeof data.type === 'string') {
           const path = this.ctx.dict.split(name)
           while (path.length) {
-            const prefix = path.join(this.ctx.dict.sep)
+            const prefix = this.ctx.dict.join(...path)
             await this.pushDict(`${prefix}#${data.type}`, data.name)
             path.pop()
           }
         }
         await this.pushDict(name, data.name)
-        if (Array.isArray(data.children)) {
-          for (const child of data.children) {
-            await this.tryLoadDict(this.ctx.dict.join(name, data.name), child)
-          }
-        }
-        return
+        for (const child of Array.isArray(data.children) ? data.children : [])
+          await this.tryLoadDict(this.ctx.dict.join(name, data.name), child)
       }
-
-      const keys = Object.keys(data)
-      keys.length && await this.loadDict(name, keys)
-      for (const key of keys)
-        await this.tryLoadDict(this.ctx.dict.join(name, key), data[key])
+      else {
+        const keys = Object.keys(data)
+        keys.length && await this.loadDict(name, keys)
+        for (const key of keys)
+          await this.tryLoadDict(this.ctx.dict.join(name, key), data[key])
+      }
     }
     else {
       logger.warn(`unknown dict format: ${name}`)
