@@ -82,23 +82,23 @@ class CustomDictSource extends DictSource {
     options: FindOptions,
   ) {
     for (const value of values) {
-      const names = (await this.ctx.model.get('custom_dict', {
+      const dicts = (await this.ctx.model.get('custom_dict', {
         values: { $el: value },
         name: { $not: { $regex: '#' } },
       }, ['name']))
-      founds[value].push(...names.map(({ name }) => ({ name, value })))
+      founds[value].push(...dicts.map(({ name }) => ({ name, value })))
     }
     if (!options.weak)
       return
     for (const value of values) {
-      const names = (await this.ctx.model.get('custom_dict', {
+      const dicts = (await this.ctx.model.get('custom_dict', {
         values: { $el: `%${value}%` },
         name: { $and: [
           { $not: { $regex: '#' } },
           { $nin: founds[value].map(found => found.name) },
         ] },
       }, ['name']))
-      founds[value].push(...names.map(({ name }) => ({ name, value, weak: true })))
+      founds[value].push(...dicts.map(({ name }) => ({ name, value, weak: true })))
     }
   }
 }
