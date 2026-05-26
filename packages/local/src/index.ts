@@ -16,6 +16,8 @@ declare module 'koishi' {
   }
 }
 
+const dictName = /^([^#]+|[^/#]+#.+)$/
+
 class LocalDictSource extends DictSource {
   static name = 'dict-local'
   static inject = ['dict', 'database']
@@ -62,7 +64,7 @@ class LocalDictSource extends DictSource {
 
   override async availables(): Promise<string[]> {
     const dicts = await this.ctx.database.get('dict', {}, ['name'])
-    return dicts.map(({ name }) => name)
+    return dicts.map(({ name }) => name).filter(name => dictName.test(name))
   }
 
   async tryLoadDict(name: string, data: any) {
@@ -147,7 +149,7 @@ class LocalDictSource extends DictSource {
     for (const value of values) {
       const dicts = (await this.ctx.model.get('dict', {
         values: { $el: value },
-        name: { $not: { $regex: '#' } },
+        name: dictName,
       }, ['name']))
       founds[value].push(...dicts.map(({ name }) => ({ name, value })))
     }
@@ -157,7 +159,7 @@ class LocalDictSource extends DictSource {
       const dicts = (await this.ctx.model.get('dict', {
         values: { $el: `%${value}%` },
         name: { $and: [
-          { $not: { $regex: '#' } },
+          { $regex: dictName },
           { $nin: founds[value].map(found => found.name) },
         ] },
       }, ['name']))
