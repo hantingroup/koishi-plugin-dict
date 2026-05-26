@@ -1,4 +1,5 @@
 import type { Context } from 'koishi'
+import type { Found } from 'koishi-plugin-dict'
 import { mkdir, readdir, readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { Logger, Schema } from 'koishi'
@@ -123,6 +124,32 @@ class LocalDictSource extends DictSource {
   override async lookup(name: string): Promise<string[]> {
     const [dict] = await this.ctx.database.get('dict', { name })
     return dict?.values || []
+  }
+
+  override async find(
+    values: string[],
+    founds: Record<string, Found[]>,
+    includeWeaks = false,
+  ) {
+    for (const value of values) {
+      const names = (await this.ctx.model.get('dict', {
+        values: { $el: value },
+        name: { $not: { $regex: '#' } },
+      }, ['name']))
+      founds[value].push(...names.map(({ name }) => ({ name, value, weak: false })))
+    }
+    if (includeWeaks) {
+      for (const value of values) {
+        const names = (await this.ctx.model.get('dict', {
+          values: { $el: `%${value}%` },
+          name: { $and: [
+            { $not: { $regex: '#' } },
+            { $nin: founds[value].map(found => found.name) },
+          ] },
+        }, ['name']))
+        founds[value].push(...names.map(({ name }) => ({ name, value, weak: true })))
+      }
+    }
   }
 }
 
