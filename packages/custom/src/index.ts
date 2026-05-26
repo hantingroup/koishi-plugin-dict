@@ -84,7 +84,6 @@ class CustomDictSource extends DictSource {
     for (const value of values) {
       const dicts = (await this.ctx.model.get('custom_dict', {
         values: { $el: value },
-        name: { $not: { $regex: '#' } },
       }, ['name']))
       founds[value].push(...dicts.map(({ name }) => ({ name, value })))
     }
@@ -93,10 +92,7 @@ class CustomDictSource extends DictSource {
     for (const value of values) {
       const dicts = (await this.ctx.model.get('custom_dict', {
         values: { $el: `%${value}%` },
-        name: { $and: [
-          { $not: { $regex: '#' } },
-          { $nin: founds[value].map(found => found.name) },
-        ] },
+        name: { $nin: founds[value].map(found => found.name) },
       }, ['name']))
       founds[value].push(...dicts.map(({ name }) => ({ name, value, weak: true })))
     }
