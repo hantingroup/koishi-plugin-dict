@@ -42,7 +42,7 @@ class LocalDictSource extends DictSource {
           if (dirent.name.endsWith('.json')) {
             const name = dirent.name.slice(0, -5)
             if (availables.includes(name)) {
-              logger.info(`dict ${name} already loaded.`)
+              logger.info(`dict ${name} already loaded`)
               return
             }
             const content = await readFile(fullPath, this.config.encoding)
@@ -52,7 +52,7 @@ class LocalDictSource extends DictSource {
       await Promise.all(promises)
       await this.flush()
       availables = await this.availables()
-      logger.info(`loaded ${availables.length} dicts.`)
+      logger.info(`loaded ${availables.length} dicts`)
       ctx.emit('dict-added', ...availables)
     })
 
@@ -131,7 +131,7 @@ class LocalDictSource extends DictSource {
     await this.ctx.database.upsert('dict', entries)
     if (entries.length) {
       logger.info(`flushed ${entries.length} dicts, `
-        + `from ${entries[0].name} to ${entries[entries.length - 1].name}.`)
+        + `from ${entries[0].name} to ${entries[entries.length - 1].name}`)
     }
     this.buffer.clear()
   }

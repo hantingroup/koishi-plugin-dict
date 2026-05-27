@@ -31,7 +31,7 @@ class AliasDictSource extends DictSource {
         }
       }
       const diff = this.aliases.size - before
-      diff && logger.info(`resolved ${diff} more aliases, ${this.aliases.size} in total.`)
+      diff && logger.info(`resolved ${diff} more aliases, ${this.aliases.size} in total`)
     })
 
     ctx.on('dict-removed', (...names) => {
@@ -44,7 +44,7 @@ class AliasDictSource extends DictSource {
         }
       }
       const diff = this.aliases.size - before
-      diff && logger.info(`removed ${diff} aliases, ${this.aliases.size} left.`)
+      diff && logger.info(`removed ${diff} aliases, ${this.aliases.size} left`)
     })
   }
 

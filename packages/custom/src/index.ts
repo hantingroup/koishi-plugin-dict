@@ -41,7 +41,7 @@ class CustomDictSource extends DictSource {
       const dicts = await ctx.database.get('custom_dict', {}, ['name'])
       for (const { name } of dicts)
         this.names.add(name)
-      logger.info(`indexed ${this.names.size} dicts.`)
+      logger.info(`indexed ${this.names.size} dicts`)
       ctx.emit('dict-added', ...this.names.values())
     })
 
