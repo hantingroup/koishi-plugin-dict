@@ -55,7 +55,7 @@ namespace HongziDictSource {
     endpoint: Schema.transform(
       Schema.string().role('url'),
       url => url.replace(/\/$/, ''),
-    ).default('http://pbhh.net:8426').description('字典接口地址'),
+    ).default('http://pbhh.net:8426').description('字典接口地址。'),
   })
 }
 

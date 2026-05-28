@@ -175,12 +175,12 @@ namespace LocalDictSource {
   }
 
   export const Config: Schema<Config> = Schema.object({
-    maxBufferSize: Schema.number().default(1000).description('最大缓冲字典数量'),
+    maxBufferSize: Schema.number().default(1000).description('最大缓冲字典数量。'),
     encoding: Schema.union([
-      Schema.const('ascii').description('ASCII'),
-      Schema.const('utf8').description('UTF-8'),
-      Schema.const('utf16le').description('UTF-16LE'),
-    ]).default('utf8').description('文本文件编码'),
+      Schema.const('ascii').description('ASCII。'),
+      Schema.const('utf8').description('UTF-8。'),
+      Schema.const('utf16le').description('UTF-16LE。'),
+    ]).default('utf8').description('文本文件编码。'),
   })
 }
 
