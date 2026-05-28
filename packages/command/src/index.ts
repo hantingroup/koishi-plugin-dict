@@ -6,13 +6,13 @@ export const name = 'dict'
 export const inject = ['dict']
 
 export function apply(ctx: Context) {
-  const look = ctx.command('look <...names:string>', '查询词典所有结果。')
-    .option('long', '-l 显示字典名。')
-    .option('prefixed', '-p 添加字典前缀。')
+  const look = ctx.command('look <...names:string>', '查询词典所有结果')
+    .option('long', '-l 显示字典名')
+    .option('prefixed', '-p 添加字典前缀')
     .option('count', '-n <count:number> ')
     .action(async ({ session, options }, ...names) => {
       if (!names.length)
-        return '请输入要查询的词典，或使用 look.list 显示所有词典。'
+        return '请输入要查询的词典，或使用 look.list 显示所有词典'
 
       return (await Promise.all(names.map(async (name, index) => {
         let result = await ctx.dict.lookup(name)
@@ -32,9 +32,9 @@ export function apply(ctx: Context) {
       }))).join('\n')
     })
 
-  look.subcommand('.list [prefix:string]', '显示所有词典。')
-    .option('long', '-l 显示字典全名。')
-    .option('depth', '-d <depth:number> 字典深度。')
+  look.subcommand('.list [prefix:string]', '显示所有词典')
+    .option('long', '-l 显示字典全名')
+    .option('depth', '-d <depth:number> 字典深度')
     .action(async ({ options }, prefix = '') => {
       const names = Array.from(ctx.dict.availables)
         .filter(name => name.startsWith(prefix))
@@ -43,9 +43,9 @@ export function apply(ctx: Context) {
       return names.join(' ')
     })
 
-  ctx.command('find <...values:string>', '查找查询字符串的词典。')
-    .option('markdown', '-m 启用 markdown 输出。')
-    .option('weak', '-w 包含弱匹配结果。')
+  ctx.command('find <...values:string>', '查找查询字符串的词典')
+    .option('markdown', '-m 启用 markdown 输出')
+    .option('weak', '-w 包含弱匹配结果')
     .action(async ({ options = {} }, ...values) => {
       const result = Object.entries(await ctx.dict.find(values, options))
         .map(([key, founds]) => `${key}: ${founds

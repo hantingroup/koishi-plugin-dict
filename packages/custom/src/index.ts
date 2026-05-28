@@ -106,12 +106,12 @@ namespace CustomDictSource {
   }
 
   export const Config: Schema<Config> = Schema.object({
-    sync: Schema.boolean().default(false).description('同步文件到数据库。'),
+    sync: Schema.boolean().default(false).description('同步文件到数据库'),
     encoding: Schema.union([
       Schema.const('ascii').description('ASCII'),
       Schema.const('utf8').description('UTF-8'),
       Schema.const('utf16le').description('UTF-16LE'),
-    ]).default('utf8').description('文本文件编码。'),
+    ]).default('utf8').description('文本文件编码'),
   })
 }
 

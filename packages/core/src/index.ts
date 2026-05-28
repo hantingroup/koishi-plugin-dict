@@ -8,7 +8,7 @@ export interface Config {
 }
 
 export const Config = Schema.object({
-  separator: Schema.string().default('/').description('层级字典分隔符。'),
+  separator: Schema.string().default('/').description('层级字典分隔符'),
 })
 
 declare module 'koishi' {

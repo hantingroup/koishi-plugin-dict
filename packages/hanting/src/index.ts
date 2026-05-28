@@ -31,7 +31,7 @@ namespace HantingDictSource {
   }
 
   export const Config: Schema<Config> = Schema.object({
-    name: Schema.string().default('hanting').description('字典名称。'),
+    name: Schema.string().default('hanting').description('字典名称'),
   })
 }
 

@@ -31,7 +31,7 @@ namespace VayuDictSource {
   }
 
   export const Config: Schema<Config> = Schema.object({
-    name: Schema.string().default('vayu').description('字典名称。'),
+    name: Schema.string().default('vayu').description('字典名称'),
   })
 }
 
