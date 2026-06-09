@@ -14,16 +14,22 @@ class AlgebraDictSource extends DictSource {
     '^': (lhs, rhs) => lhs.filter(item => !rhs.includes(item)),
   }
 
-  caches: Map<string, string[]> = new Map()
+  cache: Map<string, string[]> = new Map()
+  lrus: string[] = []
 
-  cache(name: string, values: string[]) {
-    this.caches.set(name, values)
+  cached(name: string, values: string[]) {
+    if (this.ctx.config.maxCacheSize) {
+      this.lrus.push(name)
+      this.cache.set(name, values)
+      if (this.cache.size > this.ctx.config.maxCacheSize)
+        this.cache.delete(this.lrus.shift()!)
+    }
     return values
   }
 
   override async lookup(name: string) {
-    if (this.caches.has(name))
-      return this.caches.get(name)!
+    if (this.ctx.config.maxCacheSize && this.cache.has(name))
+      return this.cache.get(name)!
     if (name.includes(' '))
       return name.split(' ')
     for (const [operator, resolve] of Object.entries(this.binaryOperators)) {
@@ -32,7 +38,7 @@ class AlgebraDictSource extends DictSource {
         logger.debug(`lookup ${name} -> ${lhs} ${operator} ${rhs}`)
         const [lhsValues, rhsValues] = await Promise
           .all([this.ctx.dict.lookup(lhs), this.ctx.dict.lookup(rhs)])
-        return this.cache(name, resolve(lhsValues, rhsValues))
+        return this.cached(name, resolve(lhsValues, rhsValues))
       }
     }
     if (name.startsWith('...'))
@@ -46,13 +52,18 @@ class AlgebraDictSource extends DictSource {
       return [this.ctx.dict.split(parent).pop()!]
     const results = await Promise.all(children.map(child =>
       this.lookupRecursive(this.ctx.dict.join(parent, child))))
-    return this.cache(`...${parent}`, results.flat())
+    return this.cached(`...${parent}`, results.flat())
   }
 }
 
 namespace AlgebraDictSource {
-  export interface Config {}
-  export const Config: Schema<Config> = Schema.object({})
+  export interface Config {
+    maxCacheSize: number
+  }
+
+  export const Config: Schema<Config> = Schema.object({
+    maxCacheSize: Schema.number().default(10000).description('最大缓存大小。'),
+  })
 }
 
 export default AlgebraDictSource
