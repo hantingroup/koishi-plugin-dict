@@ -36,7 +36,8 @@ class LocalDictSource extends DictSource {
       const baseDir = resolve(ctx.baseDir, 'data', 'dicts')
       await mkdir(baseDir, { recursive: true })
       const dirents = await readdir(baseDir, { withFileTypes: true })
-      await Promise.all(dirents.map(dirent => this.loadDirent(dirent)))
+      await Promise.all(dirents.map(dirent =>
+        this.loadDirent(availables, dirent)))
       await this.flush()
       availables = await this.availables()
       logger.info(`loaded ${availables.length} dicts`)
@@ -49,26 +50,24 @@ class LocalDictSource extends DictSource {
     })
   }
 
-  async loadDirent(dirent: Dirent, parent?: string): Promise<void> {
+  async loadDirent(availables: string[], dirent: Dirent, parent?: string): Promise<void> {
     const fullPath = resolve(dirent.parentPath, dirent.name)
-    const name = this.ctx.dict.join(parent, dirent.name.replace(/\..+$/, ''))
-    if ((await this.availables()).includes(name)) {
-      logger.info(`dict ${name} already loaded`)
-      return
-    }
+    const stem = dirent.name.replace(/\..+$/, '')
+    const name = this.ctx.dict.join(parent, stem)
+
+    if (availables.includes(name))
+      return logger.info(`dict ${name} already loaded`)
+
+    if (parent)
+      await this.pushDict(parent, stem)
 
     if (dirent.isDirectory()) {
       const dirents = await readdir(fullPath, { withFileTypes: true })
-      await this.loadDict(name, dirents.map(entry => entry.name))
-      await Promise.all(dirents.map(entry => this.loadDirent(entry, name)))
-      return
+      return void await Promise.all(dirents.map(entry =>
+        this.loadDirent(availables, entry, name)))
     }
 
     if (dirent.name.endsWith('.json')) {
-      if ((await this.availables()).includes(name)) {
-        logger.info(`dict ${name} already loaded`)
-        return
-      }
       const content = await readFile(fullPath, this.config.encoding)
       await this.tryLoadDict(name, JSON.parse(content))
     }
