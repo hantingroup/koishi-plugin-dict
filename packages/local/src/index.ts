@@ -51,22 +51,26 @@ class LocalDictSource extends DictSource {
 
   async loadDirent(dirent: Dirent, parent?: string): Promise<void> {
     const fullPath = resolve(dirent.parentPath, dirent.name)
+    const name = this.ctx.dict.join(parent, dirent.name.replace(/\..+$/, ''))
+    if ((await this.availables()).includes(name)) {
+      logger.info(`dict ${name} already loaded`)
+      return
+    }
 
     if (dirent.isDirectory()) {
       const dirents = await readdir(fullPath, { withFileTypes: true })
-      await Promise.all(dirents.map(entry => this.loadDirent(entry, dirent.name)))
+      await this.loadDict(name, dirents.map(entry => entry.name))
+      await Promise.all(dirents.map(entry => this.loadDirent(entry, name)))
       return
     }
 
     if (dirent.name.endsWith('.json')) {
-      const name = dirent.name.slice(0, -5)
       if ((await this.availables()).includes(name)) {
         logger.info(`dict ${name} already loaded`)
         return
       }
       const content = await readFile(fullPath, this.config.encoding)
-      const data = JSON.parse(content)
-      await this.tryLoadDict(this.ctx.dict.join(parent, name), data)
+      await this.tryLoadDict(name, JSON.parse(content))
     }
   }
 
@@ -124,7 +128,7 @@ class LocalDictSource extends DictSource {
       await this.flush()
   }
 
-  async pushDict(name: string, values: string[]) {
+  async pushDict(name: string, ...values: string[]) {
     await this.loadDict(name, [...this.buffer.get(name) || [], ...values])
   }
 
