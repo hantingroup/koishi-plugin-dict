@@ -1,5 +1,6 @@
 import type { Context } from 'koishi'
 import type { FindOptions, Found } from 'koishi-plugin-dict'
+import type { Dirent } from 'node:fs'
 import { mkdir, readdir, readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { Logger, Schema } from 'koishi'
@@ -35,21 +36,7 @@ class LocalDictSource extends DictSource {
       const baseDir = resolve(ctx.baseDir, 'data', 'dicts')
       await mkdir(baseDir, { recursive: true })
       const dirents = await readdir(baseDir, { withFileTypes: true })
-      const promises = dirents
-        .filter(dirent => dirent.isFile() && !dirent.name.startsWith('~'))
-        .map(async (dirent) => {
-          const fullPath = resolve(baseDir, dirent.name)
-          if (dirent.name.endsWith('.json')) {
-            const name = dirent.name.slice(0, -5)
-            if (availables.includes(name)) {
-              logger.info(`dict ${name} already loaded`)
-              return
-            }
-            const content = await readFile(fullPath, this.config.encoding)
-            await this.tryLoadDict(name, JSON.parse(content))
-          }
-        })
-      await Promise.all(promises)
+      await Promise.all(dirents.map(dirent => this.loadDirent(dirent)))
       await this.flush()
       availables = await this.availables()
       logger.info(`loaded ${availables.length} dicts`)
@@ -60,6 +47,27 @@ class LocalDictSource extends DictSource {
       const availables = await this.availables()
       ctx.emit('dict-removed', ...availables)
     })
+  }
+
+  async loadDirent(dirent: Dirent, parent?: string): Promise<void> {
+    const fullPath = resolve(dirent.parentPath, dirent.name)
+
+    if (dirent.isDirectory()) {
+      const dirents = await readdir(fullPath, { withFileTypes: true })
+      await Promise.all(dirents.map(entry => this.loadDirent(entry, dirent.name)))
+      return
+    }
+
+    if (dirent.name.endsWith('.json')) {
+      const name = dirent.name.slice(0, -5)
+      if ((await this.availables()).includes(name)) {
+        logger.info(`dict ${name} already loaded`)
+        return
+      }
+      const content = await readFile(fullPath, this.config.encoding)
+      const data = JSON.parse(content)
+      await this.tryLoadDict(this.ctx.dict.join(parent, name), data)
+    }
   }
 
   override async availables(): Promise<string[]> {
