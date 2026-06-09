@@ -32,8 +32,8 @@ export default class DictService extends Service {
     return this.config.separator
   }
 
-  join(...names: string[]) {
-    return names.join(this.sep)
+  join(...names: any[]) {
+    return names.filter(Boolean).join(this.sep)
   }
 
   split(name: string) {
