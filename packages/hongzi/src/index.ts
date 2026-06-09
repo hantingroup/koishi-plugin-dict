@@ -15,22 +15,31 @@ class HongziDictSource extends DictSource {
     return this.names
   }
 
+  prefixedNames(): string[] {
+    return Array.from(this.names)
+      .map(name => this.ctx.dict.join(this.config.name, name))
+  }
+
   constructor(ctx: Context, public config: HongziDictSource.Config) {
     super(ctx)
 
     ctx.on('ready', async () => {
-      const list = await ctx.http.get(`${this.config.endpoint}/list`)
-      this.names = new Set(list)
+      this.names = new Set(await ctx.http.get(`${this.config.endpoint}/list`))
       logger.info(`indexed ${this.names.size} dicts`)
-      ctx.emit('dict-added', ...this.names)
+      ctx.emit('dict-added', ...this.prefixedNames())
+      this.config.name && ctx.emit('dict-added', this.config.name)
     })
 
     ctx.on('dispose', () => {
-      ctx.emit('dict-removed', ...this.names)
+      ctx.emit('dict-removed', ...this.prefixedNames())
+      this.config.name && ctx.emit('dict-removed', this.config.name)
     })
   }
 
   override async lookup(name: string): Promise<string[]> {
+    if (name === this.config.name)
+      return [...this.names]
+    name = this.ctx.dict.join(this.ctx.dict.split(name).unshift())
     if (!this.names.has(name))
       return []
     const url = `${this.config.endpoint}/list/${encodeURIComponent(name)}`
@@ -49,6 +58,7 @@ class HongziDictSource extends DictSource {
 namespace HongziDictSource {
   export interface Config {
     endpoint: string
+    name?: string
   }
 
   export const Config: Schema<Config> = Schema.object({
@@ -56,6 +66,7 @@ namespace HongziDictSource {
       Schema.string().role('url'),
       url => url.replace(/\/$/, ''),
     ).default('http://pbhh.net:8426').description('字典接口地址。'),
+    name: Schema.string().default('Lvory').description('字典名称。'),
   })
 }
 
