@@ -62,7 +62,7 @@ namespace AlgebraDictSource {
   }
 
   export const Config: Schema<Config> = Schema.object({
-    maxCacheSize: Schema.number().default(10000).description('最大缓存大小。'),
+    maxCacheSize: Schema.number().default(10000).description('缓存大小。'),
   })
 }
 
