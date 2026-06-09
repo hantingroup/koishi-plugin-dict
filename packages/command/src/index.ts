@@ -34,11 +34,13 @@ export function apply(ctx: Context) {
 
   look.subcommand('.list [prefix:string]', '显示所有词典')
     .option('long', '-l 显示字典全名')
+    .option('all', '-a 显示所有词典')
     .option('depth', '-d <depth:number> 字典深度')
     .action(async ({ options }, prefix = '') => {
       const names = Array.from(ctx.dict.availables)
         .filter(name => name.startsWith(prefix))
-        .filter(name => ctx.dict.split(name).length <= (options?.depth || 1))
+        .filter(name => options?.all
+          || ctx.dict.split(name).length <= (options?.depth || 1))
         .map(name => options?.long ? name : ctx.dict.split(name).pop())
       return names.join(' ')
     })
