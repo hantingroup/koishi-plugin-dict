@@ -4,10 +4,10 @@ import {} from '@koishijs/plugin-help'
 import { Logger, Schema } from 'koishi'
 import { DictSource } from 'koishi-plugin-dict'
 
-const logger = new Logger('dict-hongzi')
+const logger = new Logger('dict-hong')
 
-class HongziDictSource extends DictSource {
-  static name = 'dict-hongzi'
+class HongDictSource extends DictSource {
+  static name = 'dict-hong'
 
   names: Set<string> = new Set()
 
@@ -20,7 +20,7 @@ class HongziDictSource extends DictSource {
       .map(name => this.ctx.dict.join(this.config.name, name))
   }
 
-  constructor(ctx: Context, public config: HongziDictSource.Config) {
+  constructor(ctx: Context, public config: HongDictSource.Config) {
     super(ctx)
 
     ctx.on('ready', async () => {
@@ -55,7 +55,7 @@ class HongziDictSource extends DictSource {
   }
 }
 
-namespace HongziDictSource {
+namespace HongDictSource {
   export interface Config {
     endpoint: string
     name?: string
@@ -70,4 +70,4 @@ namespace HongziDictSource {
   })
 }
 
-export default HongziDictSource
+export default HongDictSource
