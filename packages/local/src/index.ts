@@ -169,10 +169,12 @@ class LocalDictSource extends DictSource {
     for (const value of values) {
       const dicts = (await this.ctx.model.get('dict', {
         values: { $el: `%${value}%` },
-        name: { $and: [
-          { $regex: dictName },
-          { $nin: founds[value].map(found => found.name) },
-        ] },
+        name: {
+          $and: [
+            { $regex: dictName },
+            { $nin: founds[value].map(found => found.name) },
+          ],
+        },
       }, ['name']))
       founds[value].push(...dicts.map(({ name }) => ({ name, value, weak: true })))
     }
@@ -188,9 +190,9 @@ namespace LocalDictSource {
   export const Config: Schema<Config> = Schema.object({
     maxBufferSize: Schema.number().default(10000).description('缓冲区大小。'),
     encoding: Schema.union([
-      Schema.const('ascii').description('ASCII。'),
-      Schema.const('utf8').description('UTF-8。'),
-      Schema.const('utf16le').description('UTF-16LE。'),
+      Schema.const('ascii').description('ASCII'),
+      Schema.const('utf8').description('UTF-8'),
+      Schema.const('utf16le').description('UTF-16LE'),
     ]).default('utf8').description('文本文件编码。'),
   })
 }
