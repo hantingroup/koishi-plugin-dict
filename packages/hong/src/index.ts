@@ -39,7 +39,9 @@ class HongDictSource extends DictSource {
   override async lookup(name: string): Promise<string[]> {
     if (name === this.config.name)
       return [...this.names]
-    name = this.ctx.dict.join(this.ctx.dict.split(name).unshift())
+    const path = this.ctx.dict.split(name)
+    path.unshift()
+    name = this.ctx.dict.join(path)
     if (!this.names.has(name))
       return []
     const url = `${this.config.endpoint}/list/${encodeURIComponent(name)}`
