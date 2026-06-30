@@ -9,7 +9,7 @@ const logger = new Logger('dict-custom')
 
 declare module 'koishi' {
   interface Tables {
-    custom_dict: {
+    'dict.custom': {
       name: string
       values: string[]
     }
@@ -29,7 +29,7 @@ class CustomDictSource extends DictSource {
   constructor(ctx: Context, public config: CustomDictSource.Config) {
     super(ctx)
 
-    ctx.model.extend('custom_dict', {
+    ctx.model.extend('dict.custom', {
       name: 'char',
       values: 'list',
     }, { primary: 'name' })
@@ -38,7 +38,7 @@ class CustomDictSource extends DictSource {
       if (this.config.sync)
         await this.sync()
 
-      const dicts = await ctx.database.get('custom_dict', {}, ['name'])
+      const dicts = await ctx.database.get('dict.custom', {}, ['name'])
       for (const { name } of dicts)
         this.names.add(name)
       logger.info(`indexed ${this.names.size} dicts`)
@@ -53,7 +53,7 @@ class CustomDictSource extends DictSource {
   override async lookup(name: string): Promise<string[]> {
     if (!this.names.has(name))
       return []
-    const [dict] = await this.ctx.database.get('custom_dict', { name })
+    const [dict] = await this.ctx.database.get('dict.custom', { name })
     return dict.values
   }
 
@@ -70,7 +70,7 @@ class CustomDictSource extends DictSource {
         const values = content.split('\n')
           .map(line => line.trim())
           .filter(line => line !== '')
-        promises.push(this.ctx.database.upsert('custom_dict', [{ name, values }]))
+        promises.push(this.ctx.database.upsert('dict.custom', [{ name, values }]))
       }
     }
     await Promise.all(promises)
@@ -82,7 +82,7 @@ class CustomDictSource extends DictSource {
     options: FindOptions,
   ) {
     for (const value of values) {
-      const dicts = (await this.ctx.model.get('custom_dict', {
+      const dicts = (await this.ctx.model.get('dict.custom', {
         values: { $el: value },
       }, ['name']))
       founds[value].push(...dicts.map(({ name }) => ({ name, value })))
@@ -90,7 +90,7 @@ class CustomDictSource extends DictSource {
     if (!options.weak)
       return
     for (const value of values) {
-      const dicts = (await this.ctx.model.get('custom_dict', {
+      const dicts = (await this.ctx.model.get('dict.custom', {
         values: { $el: `%${value}%` },
         name: { $nin: founds[value].map(found => found.name) },
       }, ['name']))
