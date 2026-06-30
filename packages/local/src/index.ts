@@ -17,7 +17,7 @@ declare module 'koishi' {
   }
 }
 
-const dictName = /^([^#]+|[^/#]+#.+)$/
+// const dictName = /^([^#]+|[^/#]+#.+)$/
 
 class LocalDictSource extends DictSource {
   static name = 'dict-local'
@@ -75,7 +75,7 @@ class LocalDictSource extends DictSource {
 
   override async availables(): Promise<string[]> {
     const dicts = await this.ctx.database.get('dict.local', {}, ['name'])
-    return dicts.map(({ name }) => name).filter(name => dictName.test(name))
+    return dicts.map(({ name }) => name) // .filter(name => dictName.test(name))
   }
 
   async tryLoadDict(name: string, data: any) {
@@ -95,14 +95,14 @@ class LocalDictSource extends DictSource {
     }
     else if (typeof data === 'object' && data !== null) {
       if (typeof data.name === 'string') {
-        if (typeof data.type === 'string') {
-          const path = this.ctx.dict.split(name)
-          while (path.length) {
-            const prefix = this.ctx.dict.join(...path)
-            await this.pushDict(`${prefix}#${data.type}`, data.name)
-            path.pop()
-          }
-        }
+        // if (typeof data.type === 'string') {
+        //   const path = this.ctx.dict.split(name)
+        //   while (path.length) {
+        //     const prefix = this.ctx.dict.join(...path)
+        //     await this.pushDict(`${prefix}#${data.type}`, data.name)
+        //     path.pop()
+        //   }
+        // }
         await this.pushDict(name, data.name)
         for (const child of Array.isArray(data.children) ? data.children : [])
           await this.tryLoadDict(this.ctx.dict.join(name, data.name), child)
@@ -123,7 +123,7 @@ class LocalDictSource extends DictSource {
 
   async loadDict(name: string, values: string[]) {
     this.buffer.set(name, values)
-    if (this.buffer.size >= this.config.maxBufferSize)
+    if (this.buffer.size >= this.config.bufferSize)
       await this.flush()
   }
 
@@ -160,7 +160,7 @@ class LocalDictSource extends DictSource {
     for (const value of values) {
       const dicts = (await this.ctx.model.get('dict.local', {
         values: { $el: value },
-        name: dictName,
+        // name: dictName,
       }, ['name']))
       founds[value].push(...dicts.map(({ name }) => ({ name, value })))
     }
@@ -171,7 +171,7 @@ class LocalDictSource extends DictSource {
         values: { $el: `%${value}%` },
         name: {
           $and: [
-            { $regex: dictName },
+            // { $regex: dictName },
             { $nin: founds[value].map(found => found.name) },
           ],
         },
@@ -183,12 +183,12 @@ class LocalDictSource extends DictSource {
 
 namespace LocalDictSource {
   export interface Config {
-    maxBufferSize: number
+    bufferSize: number
     encoding: 'ascii' | 'utf8' | 'utf16le'
   }
 
   export const Config: Schema<Config> = Schema.object({
-    maxBufferSize: Schema.number().default(10000).description('缓冲区大小。'),
+    bufferSize: Schema.number().default(10000).description('缓冲区大小。'),
     encoding: Schema.union([
       Schema.const('ascii').description('ASCII'),
       Schema.const('utf8').description('UTF-8'),
