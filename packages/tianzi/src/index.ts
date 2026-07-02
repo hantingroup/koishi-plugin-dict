@@ -4,8 +4,8 @@ import {} from '@koishijs/plugin-help'
 import { Schema } from 'koishi'
 import { DictSource } from 'koishi-plugin-dict'
 
-class HongDictSource extends DictSource {
-  static name = 'dict-hong'
+class TianziDictSource extends DictSource {
+  static name = 'dict-tianzi'
 
   names: Set<string> = new Set()
 
@@ -18,7 +18,7 @@ class HongDictSource extends DictSource {
       .map(name => this.ctx.dict.join(this.config.name, name))
   }
 
-  constructor(ctx: Context, public config: HongDictSource.Config) {
+  constructor(ctx: Context, public config: TianziDictSource.Config) {
     super(ctx)
 
     ctx.on('ready', async () => {
@@ -36,7 +36,7 @@ class HongDictSource extends DictSource {
 
   override async lookup(name: string): Promise<string[]> {
     if (name === this.config.name)
-      return [...this.names]
+      return Array.from(this.names)
     const path = this.ctx.dict.split(name)
     path.unshift()
     name = this.ctx.dict.join(path)
@@ -55,19 +55,16 @@ class HongDictSource extends DictSource {
   }
 }
 
-namespace HongDictSource {
+namespace TianziDictSource {
   export interface Config {
     endpoint: string
     name?: string
   }
 
   export const Config: Schema<Config> = Schema.object({
-    endpoint: Schema.transform(
-      Schema.string().role('url'),
-      url => url.replace(/\/$/, ''),
-    ).default('http://pbhh.net:8426').description('字典接口地址。'),
+    endpoint: Schema.string().role('link').default('https://tianzi.pbhh.net').description('字典接口地址。'),
     name: Schema.string().default('Lvory').description('字典名称。'),
   })
 }
 
-export default HongDictSource
+export default TianziDictSource
