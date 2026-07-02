@@ -116,7 +116,7 @@ class LocalDictSource extends DictSource {
   }
 
   async pushDict(name: string, ...values: string[]) {
-    await this.loadDict(name, [...this.buffer.get(name) || [], ...values])
+    await this.loadDict(name, values.concat(this.buffer.get(name) || []))
   }
 
   async flush() {
@@ -124,7 +124,7 @@ class LocalDictSource extends DictSource {
       name: Array.from(this.buffer.keys()),
     })).map(dict => [dict.name, dict.values]))
     for (const [name, items] of this.buffer)
-      dicts.set(name, [...dicts.get(name) || [], ...items])
+      dicts.set(name, items.concat(dicts.get(name) || []))
     const entries = Array.from(dicts.entries())
       .map(([name, values]) => ({ name, values }))
     await this.ctx.database.upsert('dict.simple', entries)
