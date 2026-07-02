@@ -3,10 +3,8 @@ import type { FindOptions, Found } from 'koishi-plugin-dict'
 import type { Dirent } from 'node:fs'
 import { mkdir, readdir, readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
-import { Logger, Schema } from 'koishi'
+import { Schema } from 'koishi'
 import { DictSource } from 'koishi-plugin-dict'
-
-const logger = new Logger('dict-simple')
 
 declare module 'koishi' {
   interface Tables {
@@ -16,8 +14,6 @@ declare module 'koishi' {
     }
   }
 }
-
-// const dictName = /^([^#]+|[^/#]+#.+)$/
 
 class LocalDictSource extends DictSource {
   static name = 'dict-simple'
@@ -40,7 +36,7 @@ class LocalDictSource extends DictSource {
         this.loadDirent(availables, dirent)))
       await this.flush()
       availables = await this.availables()
-      logger.info(`loaded ${availables.length} dicts`)
+      ctx.logger.info(`loaded ${availables.length} dicts`)
       ctx.emit('dict-added', ...availables)
     })
 
@@ -56,7 +52,7 @@ class LocalDictSource extends DictSource {
     const name = this.ctx.dict.join(parent, stem)
 
     if (availables.includes(name))
-      return logger.info(`dict ${name} already loaded`)
+      return this.ctx.logger.info(`dict ${name} already loaded`)
 
     if (parent)
       await this.pushDict(parent, stem)
@@ -75,7 +71,7 @@ class LocalDictSource extends DictSource {
 
   override async availables(): Promise<string[]> {
     const dicts = await this.ctx.database.get('dict.simple', {}, ['name'])
-    return dicts.map(({ name }) => name) // .filter(name => dictName.test(name))
+    return dicts.map(({ name }) => name)
   }
 
   async tryLoadDict(name: string, data: any) {
@@ -95,14 +91,6 @@ class LocalDictSource extends DictSource {
     }
     else if (typeof data === 'object' && data !== null) {
       if (typeof data.name === 'string') {
-        // if (typeof data.type === 'string') {
-        //   const path = this.ctx.dict.split(name)
-        //   while (path.length) {
-        //     const prefix = this.ctx.dict.join(...path)
-        //     await this.pushDict(`${prefix}#${data.type}`, data.name)
-        //     path.pop()
-        //   }
-        // }
         await this.pushDict(name, data.name)
         for (const child of Array.isArray(data.children) ? data.children : [])
           await this.tryLoadDict(this.ctx.dict.join(name, data.name), child)
@@ -115,7 +103,7 @@ class LocalDictSource extends DictSource {
       }
     }
     else {
-      logger.warn(`unknown dict format: ${name}`)
+      this.ctx.logger.warn(`unknown dict format: ${name}`)
     }
   }
 
@@ -141,7 +129,7 @@ class LocalDictSource extends DictSource {
       .map(([name, values]) => ({ name, values }))
     await this.ctx.database.upsert('dict.simple', entries)
     if (entries.length) {
-      logger.info(`flushed ${entries.length} dicts, `
+      this.ctx.logger.info(`flushed ${entries.length} dicts, `
         + `from ${entries[0].name} to ${entries[entries.length - 1].name}`)
     }
     this.buffer.clear()
@@ -160,7 +148,6 @@ class LocalDictSource extends DictSource {
     for (const value of values) {
       const dicts = (await this.ctx.model.get('dict.simple', {
         values: { $el: value },
-        // name: dictName,
       }, ['name']))
       founds[value].push(...dicts.map(({ name }) => ({ name, value })))
     }
@@ -169,12 +156,7 @@ class LocalDictSource extends DictSource {
     for (const value of values) {
       const dicts = (await this.ctx.model.get('dict.simple', {
         values: { $el: `%${value}%` },
-        name: {
-          $and: [
-            // { $regex: dictName },
-            { $nin: founds[value].map(found => found.name) },
-          ],
-        },
+        name: { $nin: founds[value].map(found => found.name) },
       }, ['name']))
       founds[value].push(...dicts.map(({ name }) => ({ name, value, weak: true })))
     }

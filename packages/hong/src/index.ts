@@ -1,10 +1,8 @@
 import type { Context } from 'koishi'
 import type { Found } from 'koishi-plugin-dict'
 import {} from '@koishijs/plugin-help'
-import { Logger, Schema } from 'koishi'
+import { Schema } from 'koishi'
 import { DictSource } from 'koishi-plugin-dict'
-
-const logger = new Logger('dict-hong')
 
 class HongDictSource extends DictSource {
   static name = 'dict-hong'
@@ -25,7 +23,7 @@ class HongDictSource extends DictSource {
 
     ctx.on('ready', async () => {
       this.names = new Set(await ctx.http.get(`${this.config.endpoint}/list`))
-      logger.info(`indexed ${this.names.size} dicts`)
+      ctx.logger.info(`indexed ${this.names.size} dicts`)
       ctx.emit('dict-added', ...this.prefixedNames())
       this.config.name && ctx.emit('dict-added', this.config.name)
     })

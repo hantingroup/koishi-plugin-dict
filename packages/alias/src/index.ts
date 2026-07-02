@@ -1,20 +1,11 @@
 import type { Context } from 'koishi'
-import { Logger, remove, Schema } from 'koishi'
+import { remove, Schema } from 'koishi'
 import { DictSource } from 'koishi-plugin-dict'
 
-const logger = new Logger('dict-alias')
-
 class AliasDictSource extends DictSource {
-  static name = 'dict-alias';
+  static name = 'dict-alias'
 
-  * suffixes(name: string) {
-    const path = this.ctx.dict.split(name)
-    let suffix = path.pop()!
-    while (suffix !== name) {
-      yield suffix
-      suffix = this.ctx.dict.join(path.pop()!, suffix)
-    }
-  }
+  aliases: Map<string, string[]> = new Map()
 
   constructor(ctx: Context, public config: AliasDictSource.Config) {
     super(ctx)
@@ -27,11 +18,11 @@ class AliasDictSource extends DictSource {
             this.aliases.get(suffix)!.push(name)
           else
             this.aliases.set(suffix, [name])
-          logger.debug(`added: ${suffix} -> ${name}`)
+          ctx.logger.debug(`added: ${suffix} -> ${name}`)
         }
       }
       const diff = this.aliases.size - before
-      diff && logger.info(`resolved ${diff} more aliases, ${this.aliases.size} in total`)
+      diff && ctx.logger.info(`resolved ${diff} more aliases, ${this.aliases.size} in total`)
     })
 
     ctx.on('dict-removed', (...names) => {
@@ -39,16 +30,14 @@ class AliasDictSource extends DictSource {
       for (const name of names) {
         for (const suffix of this.suffixes(name)) {
           const names = this.aliases.get(suffix)
-          names ? remove(names, name) : logger.warn(`alias ${suffix} not found`)
-          logger.debug(`removed: ${suffix} -> ${name}`)
+          names ? remove(names, name) : ctx.logger.warn(`alias ${suffix} not found`)
+          ctx.logger.debug(`removed: ${suffix} -> ${name}`)
         }
       }
       const diff = this.aliases.size - before
-      diff && logger.info(`removed ${diff} aliases, ${this.aliases.size} left`)
+      diff && ctx.logger.info(`removed ${diff} aliases, ${this.aliases.size} left`)
     })
   }
-
-  aliases: Map<string, string[]> = new Map()
 
   override lookup(name: string) {
     const names = this.aliases.get(name) || []
@@ -59,6 +48,15 @@ class AliasDictSource extends DictSource {
     return Promise.resolve(Object.assign(names, {
       extra: `冲突别名！${name} -> ${names.join(' ')}`,
     }))
+  }
+
+  * suffixes(name: string) {
+    const path = this.ctx.dict.split(name)
+    let suffix = path.pop()!
+    while (suffix !== name) {
+      yield suffix
+      suffix = this.ctx.dict.join(path.pop()!, suffix)
+    }
   }
 }
 

@@ -1,10 +1,11 @@
-import { Logger, Schema } from 'koishi'
+import { Schema } from 'koishi'
 import { DictSource } from 'koishi-plugin-dict'
-
-const logger = new Logger('dict-algebra')
 
 class AlgebraDictSource extends DictSource {
   static name = 'dict-algebra'
+
+  cache: Map<string, string[]> = new Map()
+  lrus: string[] = [] // TODO: queue
 
   binaryOperators: Record<string, (lhs: string[], rhs: string[]) => string[]> = {
     '-': (lhs, rhs) => lhs.filter(item => !rhs.includes(item)),
@@ -13,9 +14,6 @@ class AlgebraDictSource extends DictSource {
     '&': (lhs, rhs) => lhs.filter(item => rhs.includes(item)),
     '^': (lhs, rhs) => lhs.filter(item => !rhs.includes(item)),
   }
-
-  cache: Map<string, string[]> = new Map()
-  lrus: string[] = []
 
   cached(name: string, values: string[]) {
     if (this.ctx.config.maxCacheSize) {
@@ -30,19 +28,26 @@ class AlgebraDictSource extends DictSource {
   override async lookup(name: string) {
     if (this.ctx.config.maxCacheSize && this.cache.has(name))
       return this.cache.get(name)!
+
+    // space-separated names
     if (name.includes(' '))
       return name.split(' ')
+
+    // operators: -, +, |, &, ^
     for (const [operator, resolve] of Object.entries(this.binaryOperators)) {
       if (name.includes(operator)) {
         const [lhs, rhs] = name.split(operator, 2)
-        logger.debug(`lookup ${name} -> ${lhs} ${operator} ${rhs}`)
+        this.ctx.logger.debug(`lookup ${name} -> ${lhs} ${operator} ${rhs}`)
         const [lhsValues, rhsValues] = await Promise
           .all([this.ctx.dict.lookup(lhs), this.ctx.dict.lookup(rhs)])
         return this.cached(name, resolve(lhsValues, rhsValues))
       }
     }
+
+    /// recursive lookup
     if (name.startsWith('...'))
       return await this.lookupRecursive(name.slice(3))
+
     return []
   }
 
