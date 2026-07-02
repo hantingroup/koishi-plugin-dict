@@ -8,7 +8,7 @@ import { DictSource } from 'koishi-plugin-dict'
 
 declare module 'koishi' {
   interface Tables {
-    'dict.simple': {
+    dict: {
       name: string
       values: string[]
     }
@@ -16,13 +16,13 @@ declare module 'koishi' {
 }
 
 class LocalDictSource extends DictSource {
-  static name = 'dict-simple'
+  static name = 'dict-local'
   static inject = ['dict', 'database']
 
   constructor(ctx: Context, public config: LocalDictSource.Config) {
     super(ctx)
 
-    ctx.model.extend('dict.simple', {
+    ctx.model.extend('dict', {
       name: 'char',
       values: 'list',
     }, { primary: 'name' })
@@ -70,7 +70,7 @@ class LocalDictSource extends DictSource {
   }
 
   override async availables(): Promise<string[]> {
-    const dicts = await this.ctx.database.get('dict.simple', {}, ['name'])
+    const dicts = await this.ctx.database.get('dict', {}, ['name'])
     return dicts.map(({ name }) => name)
   }
 
@@ -120,14 +120,14 @@ class LocalDictSource extends DictSource {
   }
 
   async flush() {
-    const dicts = new Map((await this.ctx.database.get('dict.simple', {
+    const dicts = new Map((await this.ctx.database.get('dict', {
       name: Array.from(this.buffer.keys()),
     })).map(dict => [dict.name, dict.values]))
     for (const [name, items] of this.buffer)
       dicts.set(name, items.concat(dicts.get(name) || []))
     const entries = Array.from(dicts.entries())
       .map(([name, values]) => ({ name, values }))
-    await this.ctx.database.upsert('dict.simple', entries)
+    await this.ctx.database.upsert('dict', entries)
     if (entries.length) {
       this.ctx.logger.info(`flushed ${entries.length} dicts, `
         + `from ${entries[0].name} to ${entries[entries.length - 1].name}`)
@@ -136,7 +136,7 @@ class LocalDictSource extends DictSource {
   }
 
   override async lookup(name: string): Promise<string[]> {
-    const [dict] = await this.ctx.database.get('dict.simple', { name })
+    const [dict] = await this.ctx.database.get('dict', { name })
     return dict?.values || []
   }
 
@@ -146,7 +146,7 @@ class LocalDictSource extends DictSource {
     options: FindOptions,
   ) {
     for (const value of values) {
-      const dicts = (await this.ctx.model.get('dict.simple', {
+      const dicts = (await this.ctx.model.get('dict', {
         values: { $el: value },
       }, ['name']))
       founds[value].push(...dicts.map(({ name }) => ({ name, value })))
@@ -154,7 +154,7 @@ class LocalDictSource extends DictSource {
     if (!options.weak)
       return
     for (const value of values) {
-      const dicts = (await this.ctx.model.get('dict.simple', {
+      const dicts = (await this.ctx.model.get('dict', {
         values: { $el: `%${value}%` },
         name: { $nin: founds[value].map(found => found.name) },
       }, ['name']))

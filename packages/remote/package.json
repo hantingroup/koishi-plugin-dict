@@ -1,5 +1,5 @@
 {
-  "name": "koishi-plugin-dict-simple",
+  "name": "koishi-plugin-dict-remote",
   "version": "0.0.1",
   "description": "",
   "typings": "lib/index.d.ts",

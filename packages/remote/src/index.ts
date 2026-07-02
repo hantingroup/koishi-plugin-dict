@@ -4,8 +4,8 @@ import {} from '@koishijs/plugin-help'
 import { Schema } from 'koishi'
 import { DictSource } from 'koishi-plugin-dict'
 
-class TianziDictSource extends DictSource {
-  static name = 'dict-tianzi'
+class RemoteDictSource extends DictSource {
+  static name = 'dict-remote'
 
   names: Set<string> = new Set()
 
@@ -18,7 +18,7 @@ class TianziDictSource extends DictSource {
       .map(name => this.ctx.dict.join(this.config.name, name))
   }
 
-  constructor(ctx: Context, public config: TianziDictSource.Config) {
+  constructor(ctx: Context, public config: RemoteDictSource.Config) {
     super(ctx)
 
     ctx.on('ready', async () => {
@@ -55,7 +55,7 @@ class TianziDictSource extends DictSource {
   }
 }
 
-namespace TianziDictSource {
+namespace RemoteDictSource {
   export interface Config {
     endpoint: string
     name?: string
@@ -63,8 +63,8 @@ namespace TianziDictSource {
 
   export const Config: Schema<Config> = Schema.object({
     endpoint: Schema.string().role('link').default('https://tianzi.pbhh.net').description('字典接口地址。'),
-    name: Schema.string().default('Lvory').description('字典名称。'),
+    name: Schema.string().description('字典名称。'),
   })
 }
 
-export default TianziDictSource
+export default RemoteDictSource
