@@ -46,19 +46,17 @@ export function apply(ctx: Context) {
     })
 
   ctx.command('find <...values:string>', '查找查询字符串的词典')
-    .option('markdown', '-m 启用 markdown 输出')
+    .option('plain', '-p 输出为纯文本')
     .option('weak', '-w 包含弱匹配结果')
     .action(async ({ options = {} }, ...values) => {
-      const result = Object.entries(await ctx.dict.find(values, options))
-        .map(([key, founds]) => `${key}: ${founds
+      return Object.entries(await ctx.dict.find(values, options))
+        .map(([key, founds]) => `${h.text(key)}: ${founds
           .sort((a, b) => Number(a.weak || 0) - Number(b.weak || 0))
-          .map(found => found.weak
-            ? options?.markdown ? `*${found.name}*` : found.name
-            : found.name,
-          )
-          .join(' ')}`)
+          .map(found => found.weak && !options?.plain
+            ? h('i', found.name)
+            : h.text(found.name))
+          .join(options?.plain ? ' ' : '&nbsp;')}`)
         .join('\n')
-      return options?.markdown ? h('markdown', result) : result
     })
 
   Argv.interpolate('%(', ')', (raw) => {
