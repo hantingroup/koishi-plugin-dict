@@ -63,7 +63,7 @@ namespace RemoteDictSource {
 
   export const Config: Schema<Config> = Schema.object({
     endpoint: Schema.string().role('link').default('https://tianzi.pbhh.net').description('字典接口地址。'),
-    name: Schema.string().description('字典名称。'),
+    name: Schema.string().default('remote').description('字典名称。'),
   })
 }
 
