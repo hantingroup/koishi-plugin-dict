@@ -65,21 +65,24 @@ class TableDictSource extends DictSource {
   }
 
   override async lookup(name: string): Promise<string[]> {
-    if (!this.tables.has(name))
+    let table = name
+    let column = '0'
+    if (name.includes('#'))
+      [table, column] = name.split('#')
+    if (!this.tables.has(table))
+      return []
+    const columns = this.tables.get(table)!
+    if (column === '')
+      return columns
+    if (!columns.includes(column))
       return []
     const result = await this.connection!.run(
-      `SELECT * FROM read_csv(?) ORDER BY RANDOM() LIMIT 1`,
-      [this.paths.get(name)!],
+      `SELECT "${column}" FROM read_csv(?)`,
+      [this.paths.get(table)!],
     )
-    const rows = await result.getRowObjects()
-    return rows.map(row => formatObject(row))
+    const rows = await result.getRows()
+    return rows.flatMap(row => row[0] ? [row[0] as string] : [])
   }
-}
-
-function formatObject(obj: Record<string, any>) {
-  return Object.entries(obj)
-    .flatMap(([key, value]) => value ? [`${key}: ${value}`] : [])
-    .join('\n')
 }
 
 namespace TableDictSource {
