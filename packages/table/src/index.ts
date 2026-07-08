@@ -11,15 +11,14 @@ class TableDictSource extends DictSource {
   static name = 'dict-table'
   static inject = ['dict', 'database']
 
-  private instance?: DuckDBInstance
   private connection?: DuckDBConnection
 
   constructor(ctx: Context, public config: TableDictSource.Config) {
     super(ctx)
 
     ctx.on('ready', async () => {
-      this.instance = await DuckDBInstance.create()
-      this.connection = await this.instance.connect()
+      const instance = await DuckDBInstance.create()
+      this.connection = await instance.connect()
 
       const baseDir = resolve(ctx.baseDir, 'data', 'tables')
       await mkdir(baseDir, { recursive: true })
@@ -50,7 +49,13 @@ class TableDictSource extends DictSource {
     if (dirent.name.endsWith('.csv')) {
       this.paths.set(name, fullPath)
       const result = await this.connection!.run(
-        `SELECT * FROM read_csv(?, null_padding = true) LIMIT 0`,
+        `SELECT * FROM read_csv(?
+          , delim=','
+          , quote='"'
+          , escape='"'
+          , comment='#'
+          , null_padding = true
+        ) LIMIT 0`,
         [fullPath],
       )
       this.tables.set(name, result.columnNames())
@@ -62,6 +67,23 @@ class TableDictSource extends DictSource {
 
   override async availables(): Promise<string[]> {
     return Array.from(this.tables.keys())
+  }
+
+  async select(table: string, column = '0', parallel = true) {
+    const result = await this.connection!.run(
+      `SELECT "${column}" FROM read_csv(?
+          , delim=','
+          , quote='"'
+          , escape='"'
+          , comment='#'
+          , parallel=${parallel}
+          , strict_mode = false
+          , null_padding = true
+        )`,
+      [this.paths.get(table)!],
+    )
+    const rows = await result.getRows()
+    return rows.flatMap(row => row[0] ? [row[0] as string] : [])
   }
 
   override async lookup(name: string): Promise<string[]> {
@@ -76,12 +98,13 @@ class TableDictSource extends DictSource {
       return columns
     if (!columns.includes(column))
       return []
-    const result = await this.connection!.run(
-      `SELECT "${column}" FROM read_csv(?)`,
-      [this.paths.get(table)!],
-    )
-    const rows = await result.getRows()
-    return rows.flatMap(row => row[0] ? [row[0] as string] : [])
+    // eslint-disable-next-line style/brace-style, style/max-statements-per-line
+    try { return await this.select(table, column) } catch {}
+    // eslint-disable-next-line style/brace-style, style/max-statements-per-line
+    try { return await this.select(table, column, false) } catch (e) {
+      this.ctx.logger.warn(`%o`, e)
+      return []
+    }
   }
 }
 
