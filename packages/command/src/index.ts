@@ -47,7 +47,7 @@ export function apply(ctx: Context) {
     .option('plain', '-p 输出为纯文本')
     .option('weak', '-w 包含弱匹配结果')
     .action(async ({ options = {} }, ...values) => {
-      return Object.entries(await ctx.dict.find(values, options))
+      const result = Object.entries(await ctx.dict.find(values, options))
         .map(([key, founds]) => `${h.text(key)}: ${founds
           .sort((a, b) => Number(a.weak || 0) - Number(b.weak || 0))
           .map(found => found.weak && !options?.plain
@@ -55,6 +55,7 @@ export function apply(ctx: Context) {
             : h.text(found.name))
           .join(options?.plain ? ' ' : '&nbsp;')}`)
         .join('\n')
+      return options?.plain ? result : h('markdown', result)
     })
 
   Argv.interpolate('%(', ')', (raw) => {
