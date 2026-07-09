@@ -6,7 +6,7 @@ export const name = 'dict'
 export const inject = ['dict']
 
 export function apply(ctx: Context) {
-  const look = ctx.command('look <...names:string>', '查询词典所有结果')
+  const look = ctx.command('look <names...:string>', '查询词典所有结果')
     .option('long', '-l 显示字典名')
     .option('prefixed', '-p 添加字典前缀')
     .option('count', '-n <count:number> ')
@@ -35,15 +35,17 @@ export function apply(ctx: Context) {
   look.subcommand('.list [prefix:string]', '显示所有词典')
     .option('long', '-l 显示字典全名')
     .option('all', '-a 显示所有词典')
+    .option('depth', '-d <depth:posint> 字典深度')
     .action(async ({ options }, prefix = '') => {
       const names = Array.from(ctx.dict.availables)
         .filter(name => name.startsWith(prefix))
-        .filter(name => options?.all || !name.includes('#'))
+        .filter(name => (options?.all || !name.includes('#'))
+          && ctx.dict.split(name).length <= (options?.depth || 1))
         .map(name => options?.long ? name : ctx.dict.split(name).pop())
       return names.join(' ')
     })
 
-  ctx.command('find <...values:string>', '查找查询字符串的词典')
+  ctx.command('find <values...:string>', '查找查询字符串的词典')
     .option('plain', '-p 输出为纯文本')
     .option('weak', '-w 包含弱匹配结果')
     .action(async ({ options = {} }, ...values) => {
@@ -53,7 +55,7 @@ export function apply(ctx: Context) {
           .map(found => found.weak && !options?.plain
             ? h('i', found.name)
             : h.text(found.name))
-          .join(options?.plain ? ' ' : '&nbsp;')}`)
+          .join(' ')}`)
         .join('\n')
       return options?.plain ? result : h('markdown', result)
     })
