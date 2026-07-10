@@ -61,7 +61,7 @@ class TableDictSource extends DictSource {
     return rows.map(row => row[0] as string)
   }
 
-  private async select(...args: Unshift<Parameters<typeof this.select_>>) {
+  async select(...args: Unshift<Parameters<typeof this.select_>>) {
     // eslint-disable-next-line style/max-statements-per-line
     try { return await this.select_(false, ...args) }
     catch { return await this.select_(true, ...args) }
@@ -75,17 +75,19 @@ class TableDictSource extends DictSource {
     values: DuckDBValue[] = [],
   ) {
     columns = columns.map(column => `"${column.replaceAll(/"/g, '""')}"`)
+    if (!columns.length)
+      columns.push('*')
     return await this.connection!.run(
-      `SELECT ${columns.length ? columns : '*'}  FROM read_csv(?
-          , delim=','
-          , quote='"'
-          , escape='"'
-          , comment='#'
-          , header = true
-          , parallel=${parallel}
-          , strict_mode = false
-          , null_padding = true
-        ) ${clause}`,
+      `SELECT ${columns} FROM read_csv(?
+        , delim=','
+        , quote='"'
+        , escape='"'
+        , comment='#'
+        , header = true
+        , parallel=${parallel}
+        , strict_mode = false
+        , null_padding = true
+      ) ${clause}`,
       [this.tables.get(table)!.path, ...values],
     )
   }
