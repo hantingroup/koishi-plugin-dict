@@ -17,7 +17,7 @@ class TreeNode {
   type?: string
   children: Map<string, TreeNode> | string[] = []
 
-  async* availables({ depth = 1 }: { depth?: number }): AsyncGenerator<string> {
+  async* entries({ depth = 1 }: { depth?: number }): AsyncGenerator<string> {
     if (!this.children)
       return
     if (Array.isArray(this.children)) {
@@ -27,7 +27,7 @@ class TreeNode {
     for (const [key, child] of this.children.entries()) {
       yield key
       if (depth > 1)
-        yield* child.availables({ depth: depth - 1 })
+        yield* child.entries({ depth: depth - 1 })
     }
   }
 
@@ -100,7 +100,7 @@ class TreeDictSource extends DictSource {
   static inject = ['dict', 'database']
 
   root: TreeNode = new TreeNode()
-  availables = this.root.availables.bind(this.root)
+  entries = this.root.entries.bind(this.root)
 
   constructor(ctx: Context, public config: TreeDictSource.Config) {
     super(ctx)

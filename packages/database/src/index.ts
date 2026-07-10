@@ -10,7 +10,7 @@ class DatabaseDictSource extends DictSource {
     super(ctx)
   }
 
-  override async* availables() {
+  override async* entries() {
     yield* this.config.entries.map(entry => entry.name)
   }
 

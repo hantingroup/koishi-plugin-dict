@@ -9,7 +9,7 @@ class RemoteDictSource extends DictSource {
 
   names: Set<string> = new Set()
 
-  override async* availables() {
+  override async* entries() {
     yield* this.names
   }
 

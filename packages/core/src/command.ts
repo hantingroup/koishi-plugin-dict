@@ -27,15 +27,15 @@ export function apply(ctx: Context) {
     .action(async ({ options = {} }) => {
       const entries = await Array.fromAsync(ctx.dict.sources.entries())
       const promises = entries.map(async ([key, source]) => {
-        const availables = await Array.fromAsync(source.availables(options))
-        return [key, availables] as const
+        const entries = await Array.fromAsync(source.entries(options))
+        return [key, entries] as const
       })
       const record = Object.fromEntries(await Promise.all(promises))
       return h.text((Object.entries(record)
-        .filter(([_, availables]) => availables.length)
-        .map(([key, availables]) => options.long
-          ? `${key}: ${availables.join(' ')}`
-          : availables.join(' '))
+        .filter(([_, entries]) => entries.length)
+        .map(([key, entries]) => options.long
+          ? `${key}: ${entries.join(' ')}`
+          : entries.join(' '))
         .join('\n')))
     })
 

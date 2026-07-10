@@ -18,7 +18,7 @@ export abstract class DictSource {
     this.ctx.dict.register(this)
   }
 
-  async* availables(options: FindOptions): AsyncGenerator<string, void, void> {}
+  async* entries(options: FindOptions): AsyncGenerator<string, void, void> {}
 
   lookupSync(name: string): string[] { return [] }
   async lookup(name: string): Promise<string[] & { extra?: string }> {
@@ -31,7 +31,7 @@ export abstract class DictSource {
     options: FindOptions,
   ) {
     for (const name of options.names
-      || await Array.fromAsync(this.availables(options))) {
+      || await Array.fromAsync(this.entries(options))) {
       const result = await this.lookup(name) || []
       const collected = options.weak ? result.join(' ') : ''
       for (const value of values) {

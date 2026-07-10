@@ -16,7 +16,7 @@ class TableDictSource extends DictSource {
   private connection?: DuckDBConnection
 
   tables: Map<string, { path: string, columns: string[] }> = new Map()
-  override async* availables() { yield* this.tables.keys() }
+  override async* entries() { yield* this.tables.keys() }
 
   constructor(ctx: Context, public config: TableDictSource.Config) {
     super(ctx)
