@@ -43,7 +43,7 @@ export function apply(ctx: Context) {
           .filter(name => (options?.all || !name.includes('#'))
             && ctx.dict.split(name).length <= (options?.depth || 1))
           .map(name => options?.long ? name : ctx.dict.split(name).pop())
-        result += `${key}: ${names.join(' ')}\n`
+        names.length && (result += `${key}: ${names.join(' ')}\n`)
       }
       return h.text(result)
     })
