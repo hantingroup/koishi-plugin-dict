@@ -24,7 +24,7 @@ export abstract class DictSource {
     return this.lookupSync(name)
   }
 
-  async findFromOne(
+  protected async findFromOne(
     name: string,
     values: string[],
     founds: Record<string, Found[]>,
@@ -40,7 +40,7 @@ export abstract class DictSource {
     }
   }
 
-  async findFromMany(
+  protected async findFromMany(
     names: string[],
     values: string[],
     founds: Record<string, Found[]>,
