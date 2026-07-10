@@ -15,11 +15,6 @@ class RemoteDictSource extends DictSource {
     yield* this.names
   }
 
-  prefixedNames(): string[] {
-    return Array.from(this.names)
-      .map(name => this.ctx.dict.join(this.config.name, name))
-  }
-
   constructor(ctx: Context, public config: RemoteDictSource.Config) {
     super(ctx)
 
@@ -34,9 +29,6 @@ class RemoteDictSource extends DictSource {
   override async lookup(name: string): Promise<string[]> {
     if (name === this.config.name)
       return Array.from(this.names)
-    const path = this.ctx.dict.split(name)
-    path.unshift()
-    name = this.ctx.dict.join(path)
     if (!this.names.has(name))
       return []
     const url = `${this.config.endpoint}/list/${encodeURIComponent(name)}`
