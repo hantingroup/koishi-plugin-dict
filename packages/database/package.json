@@ -1,5 +1,5 @@
 {
-  "name": "koishi-plugin-dict-hanting",
+  "name": "koishi-plugin-dict-database",
   "version": "0.0.1",
   "description": "",
   "typings": "lib/index.d.ts",
@@ -16,7 +16,6 @@
   ],
   "peerDependencies": {
     "koishi": "^4.18.7",
-    "koishi-plugin-dict": "*",
-    "koishi-plugin-hanting": "*"
+    "koishi-plugin-dict": "*"
   }
 }
