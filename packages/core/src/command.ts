@@ -6,7 +6,6 @@ export const inject = ['dict']
 export function apply(ctx: Context) {
   const look = ctx.command('look <names...:string>', '查询词典所有结果')
     .option('long', '-l 显示字典名')
-    .option('prefixed', '-p 添加字典前缀')
     .option('count', '-n <count:number> ')
     .action(async ({ session, options }, ...names) => {
       if (!names.length)
@@ -14,53 +13,39 @@ export function apply(ctx: Context) {
 
       return (await Promise.all(names.map(async (name, index) => {
         let result = await ctx.dict.lookup(name)
-        if (!result.length) {
-          const name = names[index]
-          session?.send(`look ${name.search(/\s/) ? `"${name}"` : name}: 未知字典！`)
-          return name
-        }
-        if (result.extra)
-          await session?.send(result.extra)
-        if (options?.count)
-          result = Random.pick(result, options.count)
-        const joined = options?.prefixed
-          ? result.map(item => ctx.dict.join(name, item)).join(' ')
-          : result.join(' ')
-        return options?.long ? `${names[index]}: ${joined}` : joined
+        if (!result.length)
+          return (await session?.send(`未知字典 ${names[index]}！`), names[index])
+        result.extra && (await session?.send(result.extra))
+        options?.count && (result = Random.pick(result, options.count))
+        return (options?.long ? `${names[index]}: ` : '') + result.join(' ')
       }))).join('\n')
     })
 
-  look.subcommand('.list [prefix:string]', '显示所有词典')
-    .option('long', '-l 显示字典全名')
-    .option('all', '-a 显示所有词典')
-    .option('depth', '-d <depth:posint> 字典深度')
-    .action(async ({ options }, prefix = '') => {
-      let result = ''
-      for (const [key, source] of ctx.dict.sources) {
-        const availables = await Array.fromAsync(source.availables())
-        const names = Array.from(availables)
-          .filter(name => name.startsWith(prefix))
-          .filter(name => (options?.all || !name.includes('#'))
-            && ctx.dict.split(name).length <= (options?.depth || 1))
-          .map(name => options?.long ? name : ctx.dict.split(name).pop())
-        names.length && (result += `${key}: ${names.join(' ')}\n`)
-      }
-      return h.text(result)
-    })
+  look.subcommand('.list', '显示所有词典')
+    .action(async ({ options }) => h.text(Object.entries(ctx.dict.sources)
+      .map(([key, source]) => {
+        const availables = Array.from(source.availables(options))
+        return `${key}: ${availables.join(' ')}`
+      }).join('\n')))
 
   ctx.command('find <values...:string>', '查找查询字符串的词典')
     .option('plain', '-p 输出为纯文本')
     .option('weak', '-w 包含弱匹配结果')
+    .option('chars', '-c 将输入作为字符序列处理')
+    .option('scope', '-s <scope:string> 限制搜索范围')
     .action(async ({ options = {} }, ...values) => {
-      const founds = await ctx.dict.findFrom('availables', values, options)
+      if (options.chars)
+        values = Array.from(values[0] || [])
+      const names = options.scope ? [options.scope] : 'availables'
+      const founds = await ctx.dict.findFrom(names, values, options)
       const result = Object.entries(founds).map(([key, founds]) =>
         `${h.text(key)}: ${founds
           .sort((a, b) => Number(a.weak || 0) - Number(b.weak || 0))
-          .map(found => found.weak && !options?.plain
+          .map(found => found.weak && !options.plain
             ? h('i', found.name)
             : found.name)
           .join(' ')}`).join('\n')
-      return options?.plain ? result : h('markdown', result)
+      return options.plain ? result : h('markdown', result)
     })
 
   Argv.interpolate('%(', ')', (raw) => {

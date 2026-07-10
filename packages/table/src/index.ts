@@ -33,64 +33,14 @@ class TableDictSource extends DictSource {
     })
   }
 
-  async indexDirent(dirent: Dirent, parent?: string): Promise<void> {
-    const fullPath = resolve(dirent.parentPath, dirent.name)
-    const stem = dirent.name.replace(/\..+$/, '')
-    const name = this.ctx.dict.join(parent, stem)
-
-    if (dirent.isDirectory()) {
-      const dirents = await readdir(fullPath, { withFileTypes: true })
-      const promises = dirents.map(entry => this.indexDirent(entry, name))
-      return void await Promise.all(promises)
-    }
-
+  async indexDirent(dirent: Dirent) {
+    const path = resolve(dirent.parentPath, dirent.name)
     if (dirent.name.endsWith('.csv')) {
-      const result = await this.connection!.run(
-        `SELECT * FROM read_csv(?
-          , delim=','
-          , quote='"'
-          , escape='"'
-          , comment='#'
-          , header = true
-          , strict_mode = false
-          , null_padding = true
-        ) LIMIT 0`,
-        [fullPath],
-      )
-      this.tables.set(name, {
-        path: fullPath,
-        columns: result.columnNames(),
-      })
+      const name = dirent.name.replace(/\..+$/, '')
+      this.tables.set(name, { path, columns: [] })
+      const result = await this.select(name, [], 'LIMIT 0')
+      this.tables.get(name)!.columns = result.columnNames()
     }
-  }
-
-  private async select_(
-    parallel: boolean,
-    table: string,
-    columns: string[] = ['0'],
-    where: string = '',
-    values: DuckDBValue[] = [],
-  ) {
-    columns = columns.map(column => `"${column.replaceAll(/"/g, '""')}"`)
-    return await this.connection!.run(
-      `SELECT ${columns.length ? columns.join(',') : '*'}  FROM read_csv(?
-          , delim=','
-          , quote='"'
-          , escape='"'
-          , comment='#'
-          , header = true
-          , parallel=${parallel}
-          , strict_mode = false
-          , null_padding = true
-        ) ${where}`,
-      [this.tables.get(table)!.path, ...values],
-    )
-  }
-
-  private async select(...args: Unshift<Parameters<typeof this.select_>>) {
-    // eslint-disable-next-line style/max-statements-per-line
-    try { return await this.select_(false, ...args) }
-    catch { return await this.select_(true, ...args) }
   }
 
   override async lookup(name: string): Promise<string[]> {
@@ -109,6 +59,35 @@ class TableDictSource extends DictSource {
     const result = await this.select(table, [column])
     const rows = await result.getRows()
     return rows.map(row => row[0] as string)
+  }
+
+  private async select(...args: Unshift<Parameters<typeof this.select_>>) {
+    // eslint-disable-next-line style/max-statements-per-line
+    try { return await this.select_(false, ...args) }
+    catch { return await this.select_(true, ...args) }
+  }
+
+  private async select_(
+    parallel: boolean,
+    table: string,
+    columns: string[] = [],
+    clause: string = '',
+    values: DuckDBValue[] = [],
+  ) {
+    columns = columns.map(column => `"${column.replaceAll(/"/g, '""')}"`)
+    return await this.connection!.run(
+      `SELECT ${columns.length ? columns : '*'}  FROM read_csv(?
+          , delim=','
+          , quote='"'
+          , escape='"'
+          , comment='#'
+          , header = true
+          , parallel=${parallel}
+          , strict_mode = false
+          , null_padding = true
+        ) ${clause}`,
+      [this.tables.get(table)!.path, ...values],
+    )
   }
 }
 

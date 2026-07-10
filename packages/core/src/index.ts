@@ -1,16 +1,9 @@
-import type { DictSource, FindOptions, Found } from './source'
+import type { Dict } from 'koishi'
+import type { DictSource, Found } from './source'
 import { Context, Schema, Service } from 'koishi'
 import * as Command from './command'
 
 export * from './source'
-
-export interface Config {
-  separator: string
-}
-
-export const Config = Schema.object({
-  separator: Schema.string().default('/').description('层级字典分隔符。'),
-})
 
 declare module 'koishi' {
   interface Context {
@@ -18,15 +11,11 @@ declare module 'koishi' {
   }
 }
 
-export default class DictService extends Service {
+class DictService extends Service<DictService.Config> {
   static name = 'dict'
   sources: Map<string, DictSource> = new Map()
 
-  get sep() { return this.config.separator }
-  join(...names: any[]) { return names.filter(Boolean).join(this.sep) }
-  split(name: string) { return name.split(this.sep) }
-
-  constructor(ctx: Context, public config: Config) {
+  constructor(ctx: Context, public config: DictService.Config) {
     super(ctx, 'dict', true)
     ctx.plugin(Command)
   }
@@ -57,7 +46,7 @@ export default class DictService extends Service {
   async findFrom(
     names: string[] | 'availables' = 'availables',
     values: string[],
-    options: FindOptions,
+    options: Dict<any>,
   ): Promise<Record<string, Found[]>> {
     const founds = Object.fromEntries(values.map(value => [value, []]))
     await Promise.all(this.sources.values().map(source =>
@@ -65,3 +54,10 @@ export default class DictService extends Service {
     return founds
   }
 }
+
+namespace DictService {
+  export interface Config {}
+  export const Config = Schema.object({})
+}
+
+export default DictService
