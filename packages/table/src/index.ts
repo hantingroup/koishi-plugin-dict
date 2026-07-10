@@ -83,10 +83,10 @@ class TableDictSource extends DictSource {
         , quote='"'
         , escape='"'
         , comment='#'
-        , header = true
+        , header=true
         , parallel=${parallel}
-        , strict_mode = false
-        , null_padding = true
+        , strict_mode=false
+        , null_padding=true
       ) ${clause}`,
       [this.tables.get(table)!.path, ...values],
     )
