@@ -22,11 +22,22 @@ export function apply(ctx: Context) {
     })
 
   look.subcommand('.list', '显示所有词典')
-    .action(async ({ options }) => h.text(Object.entries(ctx.dict.sources)
-      .map(([key, source]) => {
-        const availables = Array.from(source.availables(options))
-        return `${key}: ${availables.join(' ')}`
-      }).join('\n')))
+    .option('long', '-l 显示字典名')
+    .option('depth', '-d <depth:posint> 递归深度')
+    .action(async ({ options = {} }) => {
+      const entries = await Array.fromAsync(ctx.dict.sources.entries())
+      const promises = entries.map(async ([key, source]) => {
+        const availables = await Array.fromAsync(source.availables(options))
+        return [key, availables] as const
+      })
+      const record = Object.fromEntries(await Promise.all(promises))
+      return h.text((Object.entries(record)
+        .filter(([_, availables]) => availables.length)
+        .map(([key, availables]) => options.long
+          ? `${key}: ${availables.join(' ')}`
+          : availables.join(' '))
+        .join('\n')))
+    })
 
   ctx.command('find <values...:string>', '查找查询字符串的词典')
     .option('plain', '-p 输出为纯文本')

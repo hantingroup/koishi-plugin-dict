@@ -25,7 +25,7 @@ class TableDictSource extends DictSource {
       const instance = await DuckDBInstance.create()
       this.connection = await instance.connect()
 
-      const baseDir = resolve(ctx.baseDir, 'data', 'tables')
+      const baseDir = resolve(ctx.baseDir, 'data', 'dicts', 'tables')
       await mkdir(baseDir, { recursive: true })
       const dirents = await readdir(baseDir, { withFileTypes: true })
       await Promise.all(dirents.map(dirent => this.indexDirent(dirent)))

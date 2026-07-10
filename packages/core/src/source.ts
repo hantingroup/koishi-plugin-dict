@@ -6,7 +6,7 @@ export interface Found {
   weak?: boolean
 }
 
-export interface FindOptions {
+export interface FindOptions extends Record<string, any> {
   weak?: boolean
   names?: string[]
 }
