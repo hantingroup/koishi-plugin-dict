@@ -31,6 +31,8 @@ class LocalDictSource extends DictSource {
     }, { primary: 'name' })
 
     ctx.on('ready', async () => {
+      const dicts = await this.ctx.database.get('dict', {}, ['name'])
+      this.dicts = new Set(dicts.map(dict => dict.name))
       const baseDir = resolve(ctx.baseDir, 'data', 'dicts')
       await mkdir(baseDir, { recursive: true })
       const dirents = await readdir(baseDir, { withFileTypes: true })
@@ -129,8 +131,8 @@ class LocalDictSource extends DictSource {
     return dict?.values || []
   }
 
-  override async find(
-    names: string[],
+  override async findFrom(
+    names: string[] | 'availables',
     values: string[],
     founds: Record<string, Found[]>,
     options: FindOptions,
@@ -139,22 +141,22 @@ class LocalDictSource extends DictSource {
       for (const value of values) {
         founds[value].push(...((await this.ctx.database.get('dict', {
           values: { $el: value },
-          name: { $in: names },
+          ...names === 'availables' ? {} : { name: { $in: names } },
         }, ['name']))))
       }
       return
     }
 
     for (const value of values) {
-      const alreadyFounds = new Set<string>()
+      const $nin: string[] = []
       founds[value].push(...((await this.ctx.database.get('dict', {
         values: { $el: value },
-        name: { $in: names },
+        ...names === 'availables' ? {} : { name: { $in: names } },
         // eslint-disable-next-line no-sequences
-      }, ['name'])).map(({ name }) => (alreadyFounds.add(name), { name }))))
+      }, ['name'])).map(({ name }) => ($nin.push(name), { name }))))
       founds[value].push(...(await this.ctx.database.get('dict', {
         values: { $el: `%${value}%` },
-        name: { $in: names.filter(name => !alreadyFounds.has(name)) },
+        ...names === 'availables' ? {} : { name: { $in: names, $nin } },
       }, ['name'])).map(({ name }) => ({ name, weak: true })))
     }
   }

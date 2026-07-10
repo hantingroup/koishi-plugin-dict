@@ -1,8 +1,6 @@
 import type { Context } from 'koishi'
 import { Argv, h, Random } from 'koishi'
-import {} from 'koishi-plugin-dict'
 
-export const name = 'dict'
 export const inject = ['dict']
 
 export function apply(ctx: Context) {
@@ -54,14 +52,14 @@ export function apply(ctx: Context) {
     .option('plain', '-p 输出为纯文本')
     .option('weak', '-w 包含弱匹配结果')
     .action(async ({ options = {} }, ...values) => {
-      const result = Object.entries(await ctx.dict.find('availables', values, options))
-        .map(([key, founds]) => `${h.text(key)}: ${founds
+      const founds = await ctx.dict.findFrom('availables', values, options)
+      const result = Object.entries(founds).map(([key, founds]) =>
+        `${h.text(key)}: ${founds
           .sort((a, b) => Number(a.weak || 0) - Number(b.weak || 0))
           .map(found => found.weak && !options?.plain
             ? h('i', found.name)
-            : h.text(found.name))
-          .join(' ')}`)
-        .join('\n')
+            : found.name)
+          .join(' ')}`).join('\n')
       return options?.plain ? result : h('markdown', result)
     })
 

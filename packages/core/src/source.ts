@@ -24,7 +24,7 @@ export abstract class DictSource {
     return this.lookupSync(name)
   }
 
-  protected async findFrom(
+  async findFromOne(
     name: string,
     values: string[],
     founds: Record<string, Found[]>,
@@ -40,13 +40,24 @@ export abstract class DictSource {
     }
   }
 
-  async find(
+  async findFromMany(
     names: string[],
     values: string[],
     founds: Record<string, Found[]>,
     options: FindOptions,
   ) {
     await Promise.all(names.map(name =>
-      this.findFrom(name, values, founds, options)))
+      this.findFromOne(name, values, founds, options)))
+  }
+
+  async findFrom(
+    names: string[] | 'availables',
+    values: string[],
+    founds: Record<string, Found[]>,
+    options: FindOptions,
+  ) {
+    if (names === 'availables')
+      names = await Array.fromAsync(this.availables())
+    await this.findFromMany(names, values, founds, options)
   }
 }

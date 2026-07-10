@@ -1,5 +1,6 @@
 import type { DictSource, FindOptions, Found } from './source'
 import { Context, Schema, Service } from 'koishi'
+import * as Command from './command'
 
 export * from './source'
 
@@ -19,23 +20,15 @@ declare module 'koishi' {
 
 export default class DictService extends Service {
   static name = 'dict'
-
   sources: Map<string, DictSource> = new Map()
 
-  get sep() {
-    return this.config.separator
-  }
-
-  join(...names: any[]) {
-    return names.filter(Boolean).join(this.sep)
-  }
-
-  split(name: string) {
-    return name.split(this.sep)
-  }
+  get sep() { return this.config.separator }
+  join(...names: any[]) { return names.filter(Boolean).join(this.sep) }
+  split(name: string) { return name.split(this.sep) }
 
   constructor(ctx: Context, public config: Config) {
     super(ctx, 'dict', true)
+    ctx.plugin(Command)
   }
 
   register(source: DictSource) {
@@ -61,17 +54,14 @@ export default class DictService extends Service {
     })
   }
 
-  async find(
+  async findFrom(
     names: string[] | 'availables' = 'availables',
     values: string[],
     options: FindOptions,
   ): Promise<Record<string, Found[]>> {
     const founds = Object.fromEntries(values.map(value => [value, []]))
-    await Promise.all(this.sources.values().map(async (source) => {
-      await source.find(names === 'availables'
-        ? await Array.fromAsync(source.availables())
-        : names, values, founds, options)
-    }))
+    await Promise.all(this.sources.values().map(source =>
+      source.findFrom(names, values, founds, options)))
     return founds
   }
 }
