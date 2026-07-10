@@ -31,8 +31,8 @@ class RemoteDictSource extends DictSource {
     return await this.ctx.http.get(url)
   }
 
-  override async findFrom(
-    names: string[] | 'availables',
+  override async find(
+    names: string[] | null,
     values: string[],
     founds: Record<string, Found[]>,
   ) {
@@ -40,7 +40,7 @@ class RemoteDictSource extends DictSource {
       const result: string[] = await this.ctx.http
         .get(`${this.config.endpoint}/find/${encodeURIComponent(value)}`)
       founds[value].push(...result.flatMap(name =>
-        names === 'availables' || names.includes(name) ? [{ name }] : []))
+        (!names || names.includes(name)) ? [{ name }] : []))
     }
   }
 }

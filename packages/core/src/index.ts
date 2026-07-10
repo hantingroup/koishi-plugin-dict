@@ -21,8 +21,10 @@ class DictService extends Service<DictService.Config> {
   }
 
   register(source: DictSource) {
+    if (!/^dict-(?:[a-zA-Z0-9]-?)*[a-zA-Z0-9]$/.test(source.ctx.name))
+      throw new Error('dict source name must start with "dict-"')
+    const name = source.ctx.name.slice('dict-'.length)
     return this[Context.origin].effect(() => {
-      const { name } = source.ctx
       this.sources.set(name, source)
       return () => this.sources.delete(name)
     })
@@ -31,6 +33,8 @@ class DictService extends Service<DictService.Config> {
   lookup(name: string) {
     return new Promise<string[] & { extra?: string }>((resolve) => {
       let pendingCount = this.sources.size
+      if (!pendingCount)
+        return resolve([])
       for (const promise of this.sources.values()
         .map(source => source.lookup(name))) {
         promise.then((value) => {
@@ -43,14 +47,14 @@ class DictService extends Service<DictService.Config> {
     })
   }
 
-  async findFrom(
-    names: string[] | 'availables' = 'availables',
+  async find(
+    names: string[] | null = null,
     values: string[],
     options: Dict<any>,
   ): Promise<Record<string, Found[]>> {
     const founds = Object.fromEntries(values.map(value => [value, []]))
     await Promise.all(this.sources.values().map(source =>
-      source.findFrom(names, values, founds, options)))
+      source.find(names, values, founds, options)))
     return founds
   }
 }

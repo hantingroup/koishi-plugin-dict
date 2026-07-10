@@ -20,40 +20,23 @@ export abstract class DictSource {
     return this.lookupSync(name)
   }
 
-  protected async findFromOne(
-    name: string,
+  async find(
+    names: string[] | null,
     values: string[],
     founds: Record<string, Found[]>,
     options: Dict<any>,
   ) {
-    const result = await this.lookup(name) || []
-    const collected = options.weak ? result.join(' ') : ''
-    for (const value of values) {
-      if (result.includes(value))
-        founds[value].push({ name })
-      else if (options.weak && collected.includes(value))
-        founds[value].push({ name, weak: true })
-    }
-  }
-
-  protected async findFromMany(
-    names: string[],
-    values: string[],
-    founds: Record<string, Found[]>,
-    options: Dict<any>,
-  ) {
-    await Promise.all(names.map(name =>
-      this.findFromOne(name, values, founds, options)))
-  }
-
-  async findFrom(
-    names: string[] | 'availables',
-    values: string[],
-    founds: Record<string, Found[]>,
-    options: Dict<any>,
-  ) {
-    if (names === 'availables')
+    if (!names)
       names = await Array.fromAsync(this.availables(options))
-    await this.findFromMany(names, values, founds, options)
+    for (const name of names) {
+      const result = await this.lookup(name) || []
+      const collected = options.weak ? result.join(' ') : ''
+      for (const value of values) {
+        if (result.includes(value))
+          founds[value].push({ name })
+        else if (options.weak && collected.includes(value))
+          founds[value].push({ name, weak: true })
+      }
+    }
   }
 }
