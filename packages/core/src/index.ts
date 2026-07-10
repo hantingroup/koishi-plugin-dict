@@ -1,5 +1,5 @@
 import type { DictSource, FindOptions, Found } from './source'
-import { Context, remove, Schema, Service } from 'koishi'
+import { Context, Schema, Service } from 'koishi'
 
 export * from './source'
 
@@ -15,18 +15,12 @@ declare module 'koishi' {
   interface Context {
     dict: DictService
   }
-
-  interface Events {
-    'dict-added': (...names: string[]) => void
-    'dict-removed': (...names: string[]) => void
-  }
 }
 
 export default class DictService extends Service {
   static name = 'dict'
 
-  private sources: DictSource[] = []
-  readonly availables: Set<string> = new Set()
+  sources: Map<string, DictSource> = new Map()
 
   get sep() {
     return this.config.separator
@@ -42,27 +36,21 @@ export default class DictService extends Service {
 
   constructor(ctx: Context, public config: Config) {
     super(ctx, 'dict', true)
-    ctx.on('dict-added', (...names) => {
-      for (const name of names)
-        this.availables.add(name)
-    })
-    ctx.on('dict-removed', (...names) => {
-      for (const name of names)
-        this.availables.delete(name)
-    })
   }
 
   register(source: DictSource) {
     return this[Context.origin].effect(() => {
-      this.sources.push(source)
-      return () => remove(this.sources, source)
+      const { name } = source.ctx
+      this.sources.set(name, source)
+      return () => this.sources.delete(name)
     })
   }
 
   lookup(name: string) {
     return new Promise<string[] & { extra?: string }>((resolve) => {
-      let pendingCount = this.sources.length
-      for (const promise of this.sources.map(source => source.lookup(name))) {
+      let pendingCount = this.sources.size
+      for (const promise of this.sources.values()
+        .map(source => source.lookup(name))) {
         promise.then((value) => {
           if (value.length > 0)
             resolve(value)
@@ -73,9 +61,17 @@ export default class DictService extends Service {
     })
   }
 
-  async find(values: string[], options: FindOptions): Promise<Record<string, Found[]>> {
+  async find(
+    names: string[] | 'availables' = 'availables',
+    values: string[],
+    options: FindOptions,
+  ): Promise<Record<string, Found[]>> {
     const founds = Object.fromEntries(values.map(value => [value, []]))
-    await Promise.all(this.sources.map(source => source.find(values, founds, options)))
+    await Promise.all(this.sources.values().map(async (source) => {
+      await source.find(names === 'availables'
+        ? await Array.fromAsync(source.availables())
+        : names, values, founds, options)
+    }))
     return founds
   }
 }

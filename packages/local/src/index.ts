@@ -19,6 +19,9 @@ class LocalDictSource extends DictSource {
   static name = 'dict-local'
   static inject = ['dict', 'database']
 
+  dicts = new Set<string>()
+  override async* availables() { yield* this.dicts }
+
   constructor(ctx: Context, public config: LocalDictSource.Config) {
     super(ctx)
 
@@ -28,30 +31,21 @@ class LocalDictSource extends DictSource {
     }, { primary: 'name' })
 
     ctx.on('ready', async () => {
-      let availables = await this.availables()
       const baseDir = resolve(ctx.baseDir, 'data', 'dicts')
       await mkdir(baseDir, { recursive: true })
       const dirents = await readdir(baseDir, { withFileTypes: true })
-      await Promise.all(dirents.map(dirent =>
-        this.loadDirent(availables, dirent)))
+      await Promise.all(dirents.map(dirent => this.loadDirent(dirent)))
       await this.flush()
-      availables = await this.availables()
-      ctx.logger.info(`loaded ${availables.length} dicts`)
-      ctx.emit('dict-added', ...availables)
-    })
-
-    ctx.on('dispose', async () => {
-      const availables = await this.availables()
-      ctx.emit('dict-removed', ...availables)
+      ctx.logger.info(`loaded ${this.dicts.size} dicts`)
     })
   }
 
-  async loadDirent(availables: string[], dirent: Dirent, parent?: string): Promise<void> {
+  async loadDirent(dirent: Dirent, parent?: string): Promise<void> {
     const fullPath = resolve(dirent.parentPath, dirent.name)
     const stem = dirent.name.replace(/\..+$/, '')
     const name = this.ctx.dict.join(parent, stem)
 
-    if (availables.includes(name))
+    if (this.dicts.has(name))
       return this.ctx.logger.info(`dict ${name} already loaded`)
 
     if (parent)
@@ -59,8 +53,8 @@ class LocalDictSource extends DictSource {
 
     if (dirent.isDirectory()) {
       const dirents = await readdir(fullPath, { withFileTypes: true })
-      return void await Promise.all(dirents.map(entry =>
-        this.loadDirent(availables, entry, name)))
+      const promises = dirents.map(entry => this.loadDirent(entry, name))
+      return void await Promise.all(promises)
     }
 
     if (dirent.name.endsWith('.json')) {
@@ -69,15 +63,10 @@ class LocalDictSource extends DictSource {
     }
   }
 
-  override async availables(): Promise<string[]> {
-    const dicts = await this.ctx.database.get('dict', {}, ['name'])
-    return dicts.map(({ name }) => name)
-  }
-
   async tryLoadDict(name: string, data: any) {
     if (typeof data === 'string') {
       const lines = data.split('\n').filter(line => line.trim() !== '')
-      const values = lines.length > 1 ? lines : Array.from(data)
+      const values = lines.length > 1 ? lines : Array.from(lines[0].trim())
       await this.loadDict(name, values)
     }
     else if (Array.isArray(data)) {
@@ -141,24 +130,32 @@ class LocalDictSource extends DictSource {
   }
 
   override async find(
+    names: string[],
     values: string[],
     founds: Record<string, Found[]>,
     options: FindOptions,
   ) {
-    for (const value of values) {
-      const dicts = (await this.ctx.model.get('dict', {
-        values: { $el: value },
-      }, ['name']))
-      founds[value].push(...dicts.map(({ name }) => ({ name, value })))
-    }
-    if (!options.weak)
+    if (!options.weak) {
+      for (const value of values) {
+        founds[value].push(...((await this.ctx.model.get('dict', {
+          values: { $el: value },
+          name: { $in: names },
+        }, ['name']))))
+      }
       return
+    }
+
     for (const value of values) {
-      const dicts = (await this.ctx.model.get('dict', {
+      const alreadyFounds = new Set<string>()
+      founds[value].push(...((await this.ctx.model.get('dict', {
+        values: { $el: value },
+        name: { $in: names },
+        // eslint-disable-next-line no-sequences
+      }, ['name'])).map(({ name }) => (alreadyFounds.add(name), { name }))))
+      founds[value].push(...(await this.ctx.model.get('dict', {
         values: { $el: `%${value}%` },
-        name: { $nin: founds[value].map(found => found.name) },
-      }, ['name']))
-      founds[value].push(...dicts.map(({ name }) => ({ name, value, weak: true })))
+        name: { $in: names.filter(name => !alreadyFounds.has(name)) },
+      }, ['name'])).map(({ name }) => ({ name, weak: true })))
     }
   }
 }

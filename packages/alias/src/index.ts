@@ -10,33 +10,33 @@ class AliasDictSource extends DictSource {
   constructor(ctx: Context, public config: AliasDictSource.Config) {
     super(ctx)
 
-    ctx.on('dict-added', (...names) => {
-      const before = this.aliases.size
-      for (const name of names) {
-        for (const suffix of this.suffixes(name)) {
-          if (this.aliases.has(suffix))
-            this.aliases.get(suffix)!.push(name)
-          else
-            this.aliases.set(suffix, [name])
-          ctx.logger.debug(`added: ${suffix} -> ${name}`)
-        }
-      }
-      const diff = this.aliases.size - before
-      diff && ctx.logger.info(`resolved ${diff} more aliases, ${this.aliases.size} in total`)
-    })
+    // ctx.on('dict-added', (...names) => {
+    //   const before = this.aliases.size
+    //   for (const name of names) {
+    //     for (const suffix of this.suffixes(name)) {
+    //       if (this.aliases.has(suffix))
+    //         this.aliases.get(suffix)!.push(name)
+    //       else
+    //         this.aliases.set(suffix, [name])
+    //       ctx.logger.debug(`added: ${suffix} -> ${name}`)
+    //     }
+    //   }
+    //   const diff = this.aliases.size - before
+    //   diff && ctx.logger.info(`resolved ${diff} more aliases, ${this.aliases.size} in total`)
+    // })
 
-    ctx.on('dict-removed', (...names) => {
-      const before = this.aliases.size
-      for (const name of names) {
-        for (const suffix of this.suffixes(name)) {
-          const names = this.aliases.get(suffix)
-          names ? remove(names, name) : ctx.logger.warn(`alias ${suffix} not found`)
-          ctx.logger.debug(`removed: ${suffix} -> ${name}`)
-        }
-      }
-      const diff = this.aliases.size - before
-      diff && ctx.logger.info(`removed ${diff} aliases, ${this.aliases.size} left`)
-    })
+    // ctx.on('dict-removed', (...names) => {
+    //   const before = this.aliases.size
+    //   for (const name of names) {
+    //     for (const suffix of this.suffixes(name)) {
+    //       const names = this.aliases.get(suffix)
+    //       names ? remove(names, name) : ctx.logger.warn(`alias ${suffix} not found`)
+    //       ctx.logger.debug(`removed: ${suffix} -> ${name}`)
+    //     }
+    //   }
+    //   const diff = this.aliases.size - before
+    //   diff && ctx.logger.info(`removed ${diff} aliases, ${this.aliases.size} left`)
+    // })
   }
 
   override lookup(name: string) {

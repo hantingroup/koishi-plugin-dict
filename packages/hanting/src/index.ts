@@ -9,13 +9,9 @@ class HantingDictSource extends DictSource {
 
   constructor(ctx: Context, public config: HantingDictSource.Config) {
     super(ctx)
-    ctx.on('ready', () => ctx.emit('dict-added', config.name))
-    ctx.on('dispose', () => ctx.emit('dict-removed', config.name))
   }
 
-  override availables(): Promise<Iterable<string>> {
-    return Promise.resolve([this.config.name])
-  }
+  override async* availables() { yield this.config.name }
 
   override async lookup(name: string) {
     if (name !== this.config.name)

@@ -1,4 +1,4 @@
-import type { DuckDBConnection } from '@duckdb/node-api'
+import type { DuckDBConnection, DuckDBValue } from '@duckdb/node-api'
 import type { Context } from 'koishi'
 import type { Dirent } from 'node:fs'
 import { mkdir, readdir } from 'node:fs/promises'
@@ -7,11 +7,16 @@ import { DuckDBInstance } from '@duckdb/node-api'
 import { Schema } from 'koishi'
 import { DictSource } from 'koishi-plugin-dict'
 
+type Unshift<Ts extends any[]> = Ts extends [any, ...infer Tail] ? Tail : []
+
 class TableDictSource extends DictSource {
   static name = 'dict-table'
   static inject = ['dict', 'database']
 
   private connection?: DuckDBConnection
+
+  tables: Map<string, { path: string, columns: string[] }> = new Map()
+  override async* availables() { yield* this.tables.keys() }
 
   constructor(ctx: Context, public config: TableDictSource.Config) {
     super(ctx)
@@ -24,14 +29,7 @@ class TableDictSource extends DictSource {
       await mkdir(baseDir, { recursive: true })
       const dirents = await readdir(baseDir, { withFileTypes: true })
       await Promise.all(dirents.map(dirent => this.indexDirent(dirent)))
-      const availables = await this.availables()
-      ctx.logger.info(`indexed ${availables.length} dicts`)
-      ctx.emit('dict-added', ...availables)
-    })
-
-    ctx.on('dispose', async () => {
-      const availables = await this.availables()
-      ctx.emit('dict-removed', ...availables)
+      ctx.logger.info(`indexed ${this.tables.size} dicts`)
     })
   }
 
@@ -47,43 +45,52 @@ class TableDictSource extends DictSource {
     }
 
     if (dirent.name.endsWith('.csv')) {
-      this.paths.set(name, fullPath)
       const result = await this.connection!.run(
         `SELECT * FROM read_csv(?
           , delim=','
           , quote='"'
           , escape='"'
           , comment='#'
+          , header = true
+          , strict_mode = false
           , null_padding = true
         ) LIMIT 0`,
         [fullPath],
       )
-      this.tables.set(name, result.columnNames())
+      this.tables.set(name, {
+        path: fullPath,
+        columns: result.columnNames(),
+      })
     }
   }
 
-  paths: Map<string, string> = new Map()
-  tables: Map<string, string[]> = new Map()
-
-  override async availables(): Promise<string[]> {
-    return Array.from(this.tables.keys())
-  }
-
-  async select(table: string, column = '0', parallel = true) {
-    const result = await this.connection!.run(
-      `SELECT "${column}" FROM read_csv(?
+  private async select_(
+    parallel: boolean,
+    table: string,
+    columns: string[] = ['0'],
+    where: string = '',
+    values: DuckDBValue[] = [],
+  ) {
+    columns = columns.map(column => `"${column.replaceAll(/"/g, '""')}"`)
+    return await this.connection!.run(
+      `SELECT ${columns.length ? columns.join(',') : '*'}  FROM read_csv(?
           , delim=','
           , quote='"'
           , escape='"'
           , comment='#'
+          , header = true
           , parallel=${parallel}
           , strict_mode = false
           , null_padding = true
-        )`,
-      [this.paths.get(table)!],
+        ) ${where}`,
+      [this.tables.get(table)!.path, ...values],
     )
-    const rows = await result.getRows()
-    return rows.flatMap(row => row[0] ? [row[0] as string] : [])
+  }
+
+  private async select(...args: Unshift<Parameters<typeof this.select_>>) {
+    // eslint-disable-next-line style/max-statements-per-line
+    try { return await this.select_(false, ...args) }
+    catch { return await this.select_(true, ...args) }
   }
 
   override async lookup(name: string): Promise<string[]> {
@@ -93,18 +100,15 @@ class TableDictSource extends DictSource {
       [table, column] = name.split('#')
     if (!this.tables.has(table))
       return []
-    const columns = this.tables.get(table)!
+    const { columns } = this.tables.get(table)!
     if (column === '')
       return columns
     if (!columns.includes(column))
       return []
-    // eslint-disable-next-line style/brace-style, style/max-statements-per-line
-    try { return await this.select(table, column) } catch {}
-    // eslint-disable-next-line style/brace-style, style/max-statements-per-line
-    try { return await this.select(table, column, false) } catch (e) {
-      this.ctx.logger.warn(`%o`, e)
-      return []
-    }
+
+    const result = await this.select(table, [column])
+    const rows = await result.getRows()
+    return rows.map(row => row[0] as string)
   }
 }
 

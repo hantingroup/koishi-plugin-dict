@@ -37,19 +37,24 @@ export function apply(ctx: Context) {
     .option('all', '-a 显示所有词典')
     .option('depth', '-d <depth:posint> 字典深度')
     .action(async ({ options }, prefix = '') => {
-      const names = Array.from(ctx.dict.availables)
-        .filter(name => name.startsWith(prefix))
-        .filter(name => (options?.all || !name.includes('#'))
-          && ctx.dict.split(name).length <= (options?.depth || 1))
-        .map(name => options?.long ? name : ctx.dict.split(name).pop())
-      return names.join(' ')
+      let result = ''
+      for (const [key, source] of ctx.dict.sources) {
+        const availables = await Array.fromAsync(source.availables())
+        const names = Array.from(availables)
+          .filter(name => name.startsWith(prefix))
+          .filter(name => (options?.all || !name.includes('#'))
+            && ctx.dict.split(name).length <= (options?.depth || 1))
+          .map(name => options?.long ? name : ctx.dict.split(name).pop())
+        result += `${key}: ${names.join(' ')}\n`
+      }
+      return h.text(result)
     })
 
   ctx.command('find <values...:string>', '查找查询字符串的词典')
     .option('plain', '-p 输出为纯文本')
     .option('weak', '-w 包含弱匹配结果')
     .action(async ({ options = {} }, ...values) => {
-      const result = Object.entries(await ctx.dict.find(values, options))
+      const result = Object.entries(await ctx.dict.find('availables', values, options))
         .map(([key, founds]) => `${h.text(key)}: ${founds
           .sort((a, b) => Number(a.weak || 0) - Number(b.weak || 0))
           .map(found => found.weak && !options?.plain

@@ -9,8 +9,10 @@ class RemoteDictSource extends DictSource {
 
   names: Set<string> = new Set()
 
-  override async availables(): Promise<Iterable<string>> {
-    return this.names
+  override async* availables() {
+    if (this.config.name)
+      yield this.config.name
+    yield* this.names
   }
 
   prefixedNames(): string[] {
@@ -24,14 +26,9 @@ class RemoteDictSource extends DictSource {
     ctx.on('ready', async () => {
       this.names = new Set(await ctx.http.get(`${this.config.endpoint}/list`))
       ctx.logger.info(`indexed ${this.names.size} dicts`)
-      ctx.emit('dict-added', ...this.prefixedNames())
-      this.config.name && ctx.emit('dict-added', this.config.name)
     })
 
-    ctx.on('dispose', () => {
-      ctx.emit('dict-removed', ...this.prefixedNames())
-      this.config.name && ctx.emit('dict-removed', this.config.name)
-    })
+    ctx.on('dispose', () => {})
   }
 
   override async lookup(name: string): Promise<string[]> {
@@ -46,11 +43,11 @@ class RemoteDictSource extends DictSource {
     return await this.ctx.http.get(url)
   }
 
-  async find(values: string[], founds: Record<string, Found[]>) {
+  async find(names: string[], values: string[], founds: Record<string, Found[]>) {
     for (const value of values) {
       const result: string[] = await this.ctx.http
         .get(`${this.config.endpoint}/find/${encodeURIComponent(value)}`)
-      founds[value].push(...result.map(name => ({ name })))
+      founds[value].push(...result.flatMap(name => names.includes(name) ? [{ name }] : []))
     }
   }
 }
