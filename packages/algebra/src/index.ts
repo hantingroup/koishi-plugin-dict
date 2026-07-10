@@ -44,20 +44,7 @@ class AlgebraDictSource extends DictSource {
       }
     }
 
-    /// recursive lookup
-    if (name.startsWith('...'))
-      return await this.lookupRecursive(name.slice(3))
-
     return []
-  }
-
-  async lookupRecursive(parent: string): Promise<string[]> {
-    const children = await this.ctx.dict.lookup(parent)
-    if (!children.length)
-      return [this.ctx.dict.split(parent).pop()!]
-    const results = await Promise.all(children.map(child =>
-      this.lookupRecursive(this.ctx.dict.join(parent, child))))
-    return this.cached(`...${parent}`, results.flat())
   }
 }
 
