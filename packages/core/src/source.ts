@@ -1,9 +1,14 @@
 /* eslint-disable unused-imports/no-unused-vars */
-import type { Context, Dict } from 'koishi'
+import type { Context } from 'koishi'
 
 export interface Found {
   name: string
   weak?: boolean
+}
+
+export interface FindOptions {
+  weak?: boolean
+  names?: string[]
 }
 
 export abstract class DictSource {
@@ -13,7 +18,7 @@ export abstract class DictSource {
     this.ctx.dict.register(this)
   }
 
-  async* availables(options: Dict<any>): AsyncGenerator<string, void, void> {}
+  async* availables(options: FindOptions): AsyncGenerator<string, void, void> {}
 
   lookupSync(name: string): string[] { return [] }
   async lookup(name: string): Promise<string[] & { extra?: string }> {
@@ -21,14 +26,12 @@ export abstract class DictSource {
   }
 
   async find(
-    names: string[] | null,
     values: string[],
     founds: Record<string, Found[]>,
-    options: Dict<any>,
+    options: FindOptions,
   ) {
-    if (!names)
-      names = await Array.fromAsync(this.availables(options))
-    for (const name of names) {
+    for (const name of options.names
+      || await Array.fromAsync(this.availables(options))) {
       const result = await this.lookup(name) || []
       const collected = options.weak ? result.join(' ') : ''
       for (const value of values) {
