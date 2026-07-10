@@ -125,7 +125,7 @@ class LocalDictSource extends DictSource {
   }
 
   override async lookup(name: string): Promise<string[]> {
-    const [dict] = await this.ctx.database.get('dict', { name })
+    const [dict] = await this.ctx.database.get('dict', { name }, ['values'])
     return dict?.values || []
   }
 
@@ -137,7 +137,7 @@ class LocalDictSource extends DictSource {
   ) {
     if (!options.weak) {
       for (const value of values) {
-        founds[value].push(...((await this.ctx.model.get('dict', {
+        founds[value].push(...((await this.ctx.database.get('dict', {
           values: { $el: value },
           name: { $in: names },
         }, ['name']))))
@@ -147,12 +147,12 @@ class LocalDictSource extends DictSource {
 
     for (const value of values) {
       const alreadyFounds = new Set<string>()
-      founds[value].push(...((await this.ctx.model.get('dict', {
+      founds[value].push(...((await this.ctx.database.get('dict', {
         values: { $el: value },
         name: { $in: names },
         // eslint-disable-next-line no-sequences
       }, ['name'])).map(({ name }) => (alreadyFounds.add(name), { name }))))
-      founds[value].push(...(await this.ctx.model.get('dict', {
+      founds[value].push(...(await this.ctx.database.get('dict', {
         values: { $el: `%${value}%` },
         name: { $in: names.filter(name => !alreadyFounds.has(name)) },
       }, ['name'])).map(({ name }) => ({ name, weak: true })))
