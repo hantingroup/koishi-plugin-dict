@@ -36,7 +36,7 @@ export function apply(ctx: Context) {
     .action(async ({ options = {} }, ...values) => {
       if (options.chars)
         values = Array.from(values[0] || [])
-      const founds = await ctx.dict.find(null, values, options)
+      const founds = await ctx.dict.find(values, options)
       const result = Object.entries(founds).map(([key, founds]) =>
         `${h.text(key)}: ${founds
           .sort((a, b) => Number(a.weak || 0) - Number(b.weak || 0))

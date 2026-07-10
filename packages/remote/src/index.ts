@@ -1,5 +1,5 @@
 import type { Context } from 'koishi'
-import type { Found } from 'koishi-plugin-dict'
+import type { FindOptions, Found } from 'koishi-plugin-dict'
 import {} from '@koishijs/plugin-help'
 import { Schema } from 'koishi'
 import { DictSource } from 'koishi-plugin-dict'
@@ -32,15 +32,15 @@ class RemoteDictSource extends DictSource {
   }
 
   override async find(
-    names: string[] | null,
     values: string[],
     founds: Record<string, Found[]>,
+    options: FindOptions,
   ) {
     for (const value of values) {
       const result: string[] = await this.ctx.http
         .get(`${this.config.endpoint}/find/${encodeURIComponent(value)}`)
       founds[value].push(...result.flatMap(name =>
-        (!names || names.includes(name)) ? [{ name }] : []))
+        (!options.names || options.names.includes(name)) ? [{ name }] : []))
     }
   }
 }
