@@ -1,5 +1,6 @@
+import type { Schema } from 'koishi'
 import type { DictSource, FindOptions, Found } from './source'
-import { Context, Schema, Service } from 'koishi'
+import { Context, Service } from 'koishi'
 import * as Command from './command'
 
 export * from './source'
@@ -58,8 +59,8 @@ class DictService extends Service<DictService.Config> {
 }
 
 namespace DictService {
-  export interface Config {}
-  export const Config = Schema.object({})
+  export interface Config extends Command.Config {}
+  export const Config: Schema<Config> = Command.Config
 }
 
 export default DictService

@@ -1,9 +1,17 @@
 import type { Context } from 'koishi'
-import { Argv, h, Random, remove } from 'koishi'
+import { Argv, h, Random, remove, Schema } from 'koishi'
 
 export const inject = ['dict']
 
-export function apply(ctx: Context) {
+export interface Config {
+  interpolate: boolean
+}
+
+export const Config: Schema<Config> = Schema.object({
+  interpolate: Schema.boolean().default(true).description('启用字典插值。'),
+})
+
+export function apply(ctx: Context, config: Config) {
   const look = ctx.command('look <names...:string>', '查询词典所有结果')
     .option('long', '-l 显示字典名')
     .option('count', '-n <count:number> ')
@@ -68,7 +76,7 @@ export function apply(ctx: Context) {
       return options.plain ? result : h('markdown', result)
     })
 
-  Argv.interpolate('%(', ')', (raw) => {
+  config.interpolate && Argv.interpolate('%(', ')', (raw) => {
     const source = h.unescape(raw)
     let index = 0
     for (let depth = 1; index < source.length; index++) {
