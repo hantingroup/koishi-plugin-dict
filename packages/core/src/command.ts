@@ -1,5 +1,5 @@
 import type { Context } from 'koishi'
-import { Argv, h, Random } from 'koishi'
+import { Argv, h, Random, remove } from 'koishi'
 
 export const inject = ['dict']
 
@@ -18,25 +18,35 @@ export function apply(ctx: Context) {
         result.extra && (await session?.send(result.extra))
         options?.count && (result = Random.pick(result, options.count))
         return (options?.long ? `${names[index]}: ` : '') + result.join(' ')
-      }))).join('\n')
+      }))).join(options?.long ? '\n' : ' ')
     })
 
   look.subcommand('.list', '显示所有词典')
-    .option('long', '-l 显示字典名')
+    .option('long', '-l 显示来源名')
     .option('depth', '-d <depth:posint> 递归深度')
-    .action(async ({ options = {} }) => {
-      const entries = await Array.fromAsync(ctx.dict.sources.entries())
-      const promises = entries.map(async ([key, source]) => {
-        const entries = await Array.fromAsync(source.entries(options))
-        return [key, entries] as const
-      })
-      const record = Object.fromEntries(await Promise.all(promises))
-      return h.text((Object.entries(record)
+    .option('includes', '-i <includes:string> 包含来源')
+    .option('excludes', '-x <excludes:string> 排除来源')
+    .action(async ({ session, options = {} }) => {
+      const sources = ctx.dict.sources
+      const scopes = options.includes?.split(',')
+        || Array.from(sources.keys())
+      for (const exclude of options.excludes?.split(',') || [])
+        remove(scopes, exclude)
+
+      const unknowns: string[] = []
+      const promises = scopes.map<Promise<[string, string[]]>>(
+        async key => sources.has(key)
+          ? [key, await Array.fromAsync(sources.get(key)!.entries(options))]
+          : (unknowns.push(key), [key, []]),
+      )
+      const entries = (await Promise.all(promises))
         .filter(([_, entries]) => entries.length)
-        .map(([key, entries]) => options.long
-          ? `${key}: ${entries.join(' ')}`
-          : entries.join(' '))
-        .join('\n')))
+      const lines = entries.map(([key, entries]) =>
+        (options.long ? `${key}: ` : '') + entries.join(' '))
+
+      if (session && unknowns.length)
+        await session.send(`未知来源：${unknowns.join(' ')}`)
+      return h.text(lines.join(options.long ? '\n' : ' '))
     })
 
   ctx.command('find <values...:string>', '查找查询字符串的词典')
