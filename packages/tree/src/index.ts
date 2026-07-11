@@ -1,11 +1,10 @@
 import type { Context } from 'koishi'
+import type { FindOptions } from 'koishi-plugin-dict'
 import type { Dirent } from 'node:fs'
 import { mkdir, readdir, readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
-import { Logger, Schema } from 'koishi'
+import { pick, Schema } from 'koishi'
 import { DictSource } from 'koishi-plugin-dict'
-
-const logger = new Logger('dict-tree')
 
 declare module 'koishi-plugin-dict' {
   interface FindOptions {
@@ -13,85 +12,54 @@ declare module 'koishi-plugin-dict' {
   }
 }
 
-class TreeNode {
-  type?: string
-  children: Map<string, TreeNode> | string[] = []
-
-  async* entries({ depth = 1 }: { depth?: number }): AsyncGenerator<string> {
-    if (!this.children)
-      return
-    if (Array.isArray(this.children)) {
-      yield* this.children
-      return
-    }
-    for (const [key, child] of this.children.entries()) {
+class Node extends Map<string, Node | string[]> {
+  async* entriesRecursive(depth: number): AsyncGenerator<string> {
+    for (const [key, child] of this.entries()) {
       yield key
-      if (depth > 1)
-        yield* child.entries({ depth: depth - 1 })
+      if (child instanceof Node && depth > 1)
+        yield* child.entriesRecursive(depth - 1)
     }
   }
 
-  static async fromDirent(dirent: Dirent) {
-    const node = new TreeNode()
-    const name = await node.loadDirent(dirent)
-    return [name, node] as const
-  }
-
-  async loadDirent(dirent: Dirent) {
+  static async fromDirent(dirent: Dirent): Promise<[string, Node | string[]]> {
     const fullPath = resolve(dirent.parentPath, dirent.name)
 
     if (dirent.isDirectory()) {
       const dirents = await readdir(fullPath, { withFileTypes: true })
-      const promises = dirents.map(dirent => TreeNode.fromDirent(dirent))
-      this.children = new Map(await Promise.all(promises))
-      return dirent.name
+      const promises = dirents.map(dirent => Node.fromDirent(dirent))
+      return [dirent.name, new Node(await Promise.all(promises))]
     }
 
     if (dirent.name.endsWith('.json')) {
       const content = await readFile(fullPath)
-      this.loadObject(JSON.parse(content.toString()))
-      return dirent.name.replace(/\..+$/, '')
+      const data = JSON.parse(content.toString())
+      return Node.fromObject(data, dirent.name.replace(/\..+$/, ''))
     }
 
     throw new Error(`unknown format: ${fullPath}`)
   }
 
-  static fromObject(data: any, name = '') {
-    const node = new TreeNode()
-    name = node.loadObject(data, name)
-    return [name, node] as const
-  }
-
-  loadObject(data: any, name = '') {
+  static fromObject(data: any, name = ''): [string, Node | string[]] {
     if (typeof data === 'string') {
       const lines = data.split('\n').filter(line => line.trim() !== '')
-      this.children = lines.length > 1 ? lines : Array.from(lines[0].trim())
+      return [name, lines.length > 1 ? lines : Array.from(lines[0].trim())]
     }
-    else if (Array.isArray(data)) {
-      if (data.every(item => typeof item === 'string'))
-        this.children = data
-      else
-        this.children = new Map(data.map((child: any) => TreeNode.fromObject(child)))
+    if (Array.isArray(data)) {
+      // eslint-disable-next-line style/multiline-ternary
+      return [name, data.every(item => typeof item === 'string') ? data
+        : new Node(data.map((child: any) => Node.fromObject(child)))]
     }
-    else if (typeof data === 'object' && data !== null) {
+    if (typeof data === 'object' && data !== null) {
       if (typeof data.name === 'string') {
-        name = data.name
-        if (typeof data.type === 'string')
-          this.type = data.type
-        if (Array.isArray(data.children)) {
-          this.children = new Map(data.children
-            .map((child: any) => TreeNode.fromObject(child)))
-        }
+        let children: any[] = []
+        Array.isArray(data.children) && (children = data.children)
+        const node = new Node(children.map(child => Node.fromObject(child)))
+        return [data.name, Object.assign(node, pick(data, ['type']))]
       }
-      else {
-        this.children = new Map(Object.entries(data)
-          .map(([key, value]) => TreeNode.fromObject(value, key)))
-      }
+      return [name, new Node(Object.entries(data)
+        .map(([key, value]) => Node.fromObject(value, key)))]
     }
-    else {
-      logger.warn(`unknown format: %o`, data)
-    }
-    return name
+    throw new Error(`unknown format: ${data}`)
   }
 }
 
@@ -99,8 +67,10 @@ class TreeDictSource extends DictSource {
   static name = 'dict-tree'
   static inject = ['dict', 'database']
 
-  root: TreeNode = new TreeNode()
-  entries = this.root.entries.bind(this.root)
+  root: Node = new Node()
+  entries(options: FindOptions) {
+    return this.root.entriesRecursive(options.depth || 1)
+  }
 
   constructor(ctx: Context, public config: TreeDictSource.Config) {
     super(ctx)
@@ -109,25 +79,29 @@ class TreeDictSource extends DictSource {
       const baseDir = resolve(ctx.baseDir, 'data', 'dicts', 'trees')
       await mkdir(baseDir, { recursive: true })
       const dirents = await readdir(baseDir, { withFileTypes: true })
-      const promises = dirents.map(dirent => TreeNode.fromDirent(dirent))
-      this.root.children = new Map(await Promise.all(promises))
-      ctx.logger.info(`indexed ${this.root.children.size} dicts`)
+      const promises = dirents.map(dirent => Node.fromDirent(dirent))
+      this.root = new Node(await Promise.all(promises))
+      ctx.logger.info(`loaded ${this.root.size} dicts`)
     })
   }
 
   override async lookup(name: string) {
     const path = name.split('/')
-    let current = this.root
+    const final = path.pop()!
+    let node: Node = this.root
     for (const part of path) {
-      if (!(current?.children instanceof Map))
-        return []
-      current = current.children.get(part)!
-      if (!current)
+      const child = node.get(part)
+      if (child instanceof Node)
+        node = child
+      else
         return []
     }
-    return current.children instanceof Map
-      ? Array.from(current.children.keys())
-      : current.children
+    const result = node.get(final)
+    return result
+      ? result instanceof Node
+        ? Array.from(result.keys())
+        : result
+      : []
   }
 }
 
