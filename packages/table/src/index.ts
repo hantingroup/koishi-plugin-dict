@@ -95,7 +95,12 @@ class TableDictSource extends DictSource {
 
 namespace TableDictSource {
   export interface Config {}
-  export const Config: Schema<Config> = Schema.object({})
+  export const Config: Schema<Config> = Schema.object({
+    delim: Schema.string().default(',').description('CSV分隔符。'),
+    quote: Schema.string().default('"').description('CSV引号符。'),
+    escape: Schema.string().default('"').description('CSV转义符。'),
+    comment: Schema.string().default('#').description('CSV注释符。'),
+  })
 }
 
 export default TableDictSource
